@@ -1,0 +1,101 @@
+# Sistema completo El-Destripador-de-PDFs (microservicios + Traefik + Redis + Mongo)
+#
+# Uso:
+#   docker compose up --build
+#
+# Cada microservicio debe estar clonado como carpeta hermana de esta:
+#   ../documentos-service, ../extraccion-service, ../resumen-service,
+#   ../notificaciones-service, ../orquestador-service
+# (ajustar los `build:` si tu layout es distinto)
+
+services:
+  traefik:
+    image: traefik:v3.5
+    command:
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+      - --api.dashboard=true
+      - --api.insecure=true
+    ports:
+      - "80:80"        # gateway
+      - "8080:8080"    # dashboard de Traefik
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks: [web]
+
+  redis:
+    image: redis:7-alpine
+    networks: [web]
+
+  mongo:
+    image: mongo:8.0
+    volumes:
+      - mongo_data:/data/db
+    networks: [web]
+
+  documentos:
+    build: ../../documentos-service
+    environment:
+      DATABASE_URL: mongodb://mongo:27017
+      DATABASE_NAME: documentos_service
+    depends_on: [mongo]
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.documentos.rule=Host(`documentos.localhost`)
+      - traefik.http.services.documentos.loadbalancer.server.port=8000
+    networks: [web]
+
+  extraccion:
+    build: ../../extraccion-service
+    environment:
+      DOCUMENTOS_SERVICE_URL: http://documentos:8000
+    depends_on: [documentos]
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.extraccion.rule=Host(`extraccion.localhost`)
+      - traefik.http.services.extraccion.loadbalancer.server.port=8000
+    networks: [web]
+
+  resumen:
+    build: ../../resumen-service
+    environment:
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.resumen.rule=Host(`resumen.localhost`)
+      - traefik.http.services.resumen.loadbalancer.server.port=8000
+    networks: [web]
+
+  notificaciones:
+    build: ../../notificaciones-service
+    environment:
+      DATABASE_URL: mongodb://mongo:27017
+      DATABASE_NAME: notificaciones_service
+    depends_on: [mongo]
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.notificaciones.rule=Host(`notificaciones.localhost`)
+      - traefik.http.services.notificaciones.loadbalancer.server.port=8000
+    networks: [web]
+
+  orquestador:
+    build: ../
+    environment:
+      EXTRACCION_URL: http://extraccion:8000
+      RESUMEN_URL: http://resumen:8000
+      NOTIFICACIONES_URL: http://notificaciones:8000
+      REDIS_URL: redis://redis:6379
+      CACHE_ENABLED: "true"
+    depends_on: [extraccion, resumen, notificaciones, redis]
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.orquestador.rule=Host(`orquestador.localhost`)
+      - traefik.http.services.orquestador.loadbalancer.server.port=8000
+    networks: [web]
+
+volumes:
+  mongo_data:
+
+networks:
+  web:
