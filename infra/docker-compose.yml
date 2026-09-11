@@ -160,12 +160,15 @@ services:
       context: ../
       network: host
     environment:
+      DOCUMENTOS_URL: http://documentos:8000
       EXTRACCION_URL: http://extraccion:8000
       RESUMEN_URL: http://resumen:8000
       NOTIFICACIONES_URL: http://notificaciones:8000
       REDIS_URL: redis://redis:6379
       CACHE_ENABLED: "true"
     depends_on:
+      documentos:
+        condition: service_healthy
       extraccion:
         condition: service_healthy
       resumen:
