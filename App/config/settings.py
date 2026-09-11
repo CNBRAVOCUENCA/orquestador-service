@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     debug: bool = False
 
     # URLs de los microservicios coordinados (se sobreescriben con env vars en Docker)
+    documentos_url: str = "http://localhost:8001"
     extraccion_url: str = "http://localhost:8002"
     resumen_url: str = "http://localhost:8003"
     notificaciones_url: str = "http://localhost:8004"

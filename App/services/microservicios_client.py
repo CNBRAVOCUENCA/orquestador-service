@@ -10,7 +10,8 @@ from App.exceptions import PasoSagaError
 
 
 class MicroserviciosClient:
-    def __init__(self, extraccion_url: str, resumen_url: str, notificaciones_url: str, timeout: float = 30.0):
+    def __init__(self, documentos_url: str, extraccion_url: str, resumen_url: str, notificaciones_url: str, timeout: float = 30.0):
+        self.documentos_url = documentos_url.rstrip("/")
         self.extraccion_url = extraccion_url.rstrip("/")
         self.resumen_url = resumen_url.rstrip("/")
         self.notificaciones_url = notificaciones_url.rstrip("/")
@@ -25,6 +26,20 @@ class MicroserviciosClient:
         if resp.status_code >= 400:
             raise PasoSagaError(paso, f"HTTP {resp.status_code}: {resp.text[:200]}")
         return resp.json()
+
+    async def subir_documento(self, nombre: str, filename: str, contenido: bytes) -> int:
+        """Sube un PDF a documentos-service y devuelve el document_id."""
+        url = f"{self.documentos_url}/api/v1/documents"
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            try:
+                files = {"file": (filename, contenido, "application/pdf")}
+                data = {"name": nombre}
+                resp = await client.post(url, data=data, files=files)
+            except httpx.HTTPError as exc:
+                raise PasoSagaError("subida", f"no se pudo subir el documento: {exc}") from exc
+        if resp.status_code >= 400:
+            raise PasoSagaError("subida", f"HTTP {resp.status_code}: {resp.text[:200]}")
+        return resp.json()["id"]
 
     async def extraer(self, document_id: int) -> str:
         """Llama a extraccion-service. Devuelve el texto extraído."""

@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>El Destripador de PDFs — Orquestación de Microservicios</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+      color: #e2e8f0;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      padding: 40px 20px;
+    }
+    .container { width: 100%; max-width: 720px; }
+    header { text-align: center; margin-bottom: 32px; }
+    h1 { font-size: 1.9rem; font-weight: 700; color: #f8fafc; }
+    header p { color: #94a3b8; margin-top: 8px; font-size: 0.95rem; }
+
+    .card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 16px;
+      padding: 28px;
+      margin-bottom: 24px;
+    }
+    .upload-zone {
+      border: 2px dashed #475569;
+      border-radius: 12px;
+      padding: 32px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .upload-zone:hover { border-color: #3b82f6; background: #1e2a45; }
+    .upload-zone.tiene-archivo { border-color: #22c55e; background: #14261c; }
+    .upload-zone .icono { font-size: 2.5rem; margin-bottom: 8px; }
+    .upload-zone .texto { color: #cbd5e1; }
+    .upload-zone .archivo-nombre { color: #4ade80; font-weight: 600; margin-top: 8px; }
+    input[type="file"] { display: none; }
+
+    label.campo { display: block; margin: 20px 0 8px; color: #cbd5e1; font-size: 0.9rem; }
+    input[type="text"] {
+      width: 100%; padding: 12px 14px; border-radius: 10px;
+      border: 1px solid #475569; background: #0f172a; color: #e2e8f0; font-size: 1rem;
+    }
+
+    button.procesar {
+      width: 100%; margin-top: 24px; padding: 14px;
+      background: #3b82f6; color: white; border: none; border-radius: 10px;
+      font-size: 1.05rem; font-weight: 600; cursor: pointer; transition: background 0.2s;
+    }
+    button.procesar:hover:not(:disabled) { background: #2563eb; }
+    button.procesar:disabled { background: #475569; cursor: not-allowed; }
+
+    .pasos { display: none; }
+    .pasos.visible { display: block; }
+    .paso {
+      display: flex; align-items: center; gap: 14px;
+      padding: 14px 16px; border-radius: 10px; margin-bottom: 10px;
+      background: #0f172a; border: 1px solid #334155; transition: all 0.3s;
+    }
+    .paso .bolita {
+      width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      background: #334155; font-size: 0.9rem; font-weight: 700;
+    }
+    .paso .nombre { flex: 1; color: #cbd5e1; }
+    .paso.pendiente { opacity: 0.5; }
+    .paso.en-curso { border-color: #3b82f6; }
+    .paso.en-curso .bolita { background: #3b82f6; animation: pulso 1s infinite; }
+    .paso.ok { border-color: #22c55e; }
+    .paso.ok .bolita { background: #22c55e; }
+    .paso.error { border-color: #ef4444; }
+    .paso.error .bolita { background: #ef4444; }
+    @keyframes pulso { 0%,100% { transform: scale(1); } 50% { transform: scale(1.15); } }
+
+    .resultado { display: none; margin-top: 20px; }
+    .resultado.visible { display: block; }
+    .resultado h3 { color: #f8fafc; margin-bottom: 12px; }
+    .resumen-texto {
+      background: #0f172a; border: 1px solid #334155; border-radius: 10px;
+      padding: 16px; color: #cbd5e1; line-height: 1.6; white-space: pre-wrap;
+    }
+    .badge-ok { color: #4ade80; font-weight: 700; }
+    .badge-error { color: #f87171; font-weight: 700; }
+    .error-detalle {
+      background: #2a1416; border: 1px solid #7f1d1d; border-radius: 10px;
+      padding: 14px; color: #fca5a5; margin-top: 12px;
+    }
+    .config { text-align: center; margin-top: 16px; font-size: 0.8rem; color: #64748b; }
+    .config input { width: 260px; padding: 6px 10px; font-size: 0.8rem; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🗂️ El Destripador de PDFs</h1>
+      <p>Subí un PDF y mirá cómo se orquestan los microservicios en tiempo real</p>
+    </header>
+
+    <div class="card">
+      <div class="upload-zone" id="zonaUpload" onclick="document.getElementById('archivo').click()">
+        <div class="icono">📄</div>
+        <div class="texto">Hacé clic para elegir un PDF</div>
+        <div class="archivo-nombre" id="nombreArchivo"></div>
+      </div>
+      <input type="file" id="archivo" accept="application/pdf" onchange="archivoElegido()" />
+
+      <label class="campo" for="nombreDoc">Nombre del documento</label>
+      <input type="text" id="nombreDoc" placeholder="Ej: Contrato de alquiler" value="Documento de prueba" />
+
+      <button class="procesar" id="btnProcesar" onclick="procesar()" disabled>Procesar documento</button>
+    </div>
+
+    <div class="card pasos" id="cardPasos">
+      <div class="paso pendiente" id="paso-subido">
+        <div class="bolita">1</div><div class="nombre">Subido — documento recibido</div>
+      </div>
+      <div class="paso pendiente" id="paso-extraido">
+        <div class="bolita">2</div><div class="nombre">Extraído — texto obtenido del PDF</div>
+      </div>
+      <div class="paso pendiente" id="paso-resumido">
+        <div class="bolita">3</div><div class="nombre">Resumido — resumen generado con IA</div>
+      </div>
+      <div class="paso pendiente" id="paso-notificado">
+        <div class="bolita">4</div><div class="nombre">Notificado — flujo completo</div>
+      </div>
+
+      <div class="resultado" id="resultado"></div>
+    </div>
+
+    <div class="config">
+      Orquestador: <input type="text" id="urlOrq" value="" placeholder="auto-detectado" />
+    </div>
+  </div>
+
+  <script>
+    // Auto-detectar la URL del orquestador según de dónde se sirvió la página
+    const urlPorDefecto = window.location.origin && window.location.origin.startsWith("http")
+      ? window.location.origin
+      : "http://localhost:8005";
+    document.getElementById("urlOrq").value = urlPorDefecto;
+
+    let archivoSeleccionado = null;
+
+    function archivoElegido() {
+      const input = document.getElementById("archivo");
+      if (input.files.length > 0) {
+        archivoSeleccionado = input.files[0];
+        document.getElementById("nombreArchivo").textContent = "✓ " + archivoSeleccionado.name;
+        document.getElementById("zonaUpload").classList.add("tiene-archivo");
+        document.getElementById("btnProcesar").disabled = false;
+      }
+    }
+
+    function estadoPaso(id, estado) {
+      const el = document.getElementById("paso-" + id);
+      el.className = "paso " + estado;
+    }
+
+    function reiniciarPasos() {
+      ["subido","extraido","resumido","notificado"].forEach(p => estadoPaso(p, "pendiente"));
+      document.getElementById("resultado").className = "resultado";
+      document.getElementById("resultado").innerHTML = "";
+    }
+
+    async function procesar() {
+      const btn = document.getElementById("btnProcesar");
+      const urlOrq = document.getElementById("urlOrq").value.replace(/\/$/, "");
+      const nombre = document.getElementById("nombreDoc").value || "Documento";
+
+      btn.disabled = true;
+      btn.textContent = "Procesando...";
+      document.getElementById("cardPasos").classList.add("visible");
+      reiniciarPasos();
+      estadoPaso("subido", "en-curso");
+
+      const formData = new FormData();
+      formData.append("name", nombre);
+      formData.append("file", archivoSeleccionado);
+
+      try {
+        const resp = await fetch(urlOrq + "/api/v1/procesar-completo", {
+          method: "POST",
+          body: formData,
+        });
+        const data = await resp.json();
+
+        // Iluminar los pasos según pasos_completados
+        const completados = data.pasos_completados || [];
+        const orden = ["subido","extraido","resumido","notificado"];
+        for (const paso of orden) {
+          if (completados.includes(paso)) {
+            estadoPaso(paso, "ok");
+          } else if (!data.exito) {
+            estadoPaso(paso, "error");
+            break;
+          }
+        }
+
+        mostrarResultado(data);
+      } catch (err) {
+        estadoPaso("subido", "error");
+        mostrarError("No se pudo conectar con el orquestador en " + urlOrq +
+                     ". ¿Están los servicios levantados? Detalle: " + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Procesar documento";
+      }
+    }
+
+    function mostrarResultado(data) {
+      const div = document.getElementById("resultado");
+      div.className = "resultado visible";
+      if (data.exito) {
+        div.innerHTML = `
+          <h3><span class="badge-ok">✓ Orquestación completa</span></h3>
+          <p style="color:#94a3b8;margin-bottom:12px;">Documento #${data.document_id} — recorrió los 4 microservicios</p>
+          <h3>Resumen generado:</h3>
+          <div class="resumen-texto">${(data.resumen || "(sin resumen)").replace(/</g,"&lt;")}</div>
+        `;
+      } else {
+        div.innerHTML = `
+          <h3><span class="badge-error">✗ La orquestación falló</span></h3>
+          <div class="error-detalle">${(data.error || "error desconocido").replace(/</g,"&lt;")}</div>
+          <p style="color:#94a3b8;margin-top:12px;">Pasos completados: ${(data.pasos_completados||[]).join(" → ") || "ninguno"}</p>
+        `;
+      }
+    }
+
+    function mostrarError(msg) {
+      const div = document.getElementById("resultado");
+      div.className = "resultado visible";
+      div.innerHTML = `<div class="error-detalle">${msg}</div>`;
+    }
+  </script>
+</body>
+</html>

@@ -7,13 +7,14 @@ import respx
 from App.exceptions import PasoSagaError
 from App.services.microservicios_client import MicroserviciosClient
 
+DOC = "http://doc.test"
 EXT = "http://ext.test"
 RES = "http://res.test"
 NOT = "http://not.test"
 
 
 def _client():
-    return MicroserviciosClient(EXT, RES, NOT)
+    return MicroserviciosClient(DOC, EXT, RES, NOT)
 
 
 @respx.mock

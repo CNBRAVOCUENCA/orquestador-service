@@ -28,6 +28,7 @@ router = APIRouter(tags=["orquestador"])
 
 def _get_saga() -> SagaService:
     client = MicroserviciosClient(
+        documentos_url=settings.documentos_url,
         extraccion_url=settings.extraccion_url,
         resumen_url=settings.resumen_url,
         notificaciones_url=settings.notificaciones_url,
@@ -46,3 +47,27 @@ async def procesar(document_id: int, forzar: bool = False, saga: SagaService = D
     """
     resultado = await saga.procesar(document_id, forzar=forzar)
     return ProcesarResponse(**resultado.model_dump())
+
+
+from fastapi import File, Form, UploadFile
+
+
+@router.post("/procesar-completo")
+async def procesar_completo(
+    name: str = Form(...),
+    file: UploadFile = File(...),
+    saga: SagaService = Depends(_get_saga),
+):
+    """Sube un PDF y ejecuta la Saga completa de una sola vez.
+
+    Pensado para el front-end: recibe el archivo, lo sube a documentos-service,
+    y dispara la orquestación. Devuelve el resultado completo de la Saga más el
+    document_id asignado.
+    """
+    contenido = await file.read()
+    await file.close()
+    # Subir el documento primero
+    document_id = await saga.client.subir_documento(name, file.filename, contenido)
+    # Ejecutar la Saga sobre ese documento
+    resultado = await saga.procesar(document_id, forzar=True)
+    return {"document_id": document_id, **resultado.model_dump()}

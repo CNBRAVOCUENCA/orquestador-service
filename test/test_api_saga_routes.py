@@ -12,6 +12,7 @@ NOT = "http://not.test"
 
 @pytest.fixture
 def client(monkeypatch):
+    monkeypatch.setenv("DOCUMENTOS_URL", "http://doc.test")
     monkeypatch.setenv("EXTRACCION_URL", EXT)
     monkeypatch.setenv("RESUMEN_URL", RES)
     monkeypatch.setenv("NOTIFICACIONES_URL", NOT)
@@ -55,3 +56,24 @@ def test_procesar_con_fallo_devuelve_error(client):
 
 def test_health(client):
     assert client.get("/health").status_code == 200
+
+
+@respx.mock
+def test_procesar_completo_sube_y_orquesta(client):
+    # Mockear documentos (subida), extraccion, resumen y notificaciones
+    respx.post("http://doc.test/api/v1/documents").mock(return_value=httpx.Response(201, json={"id": 7}))
+    respx.get("http://doc.test/api/v1/documents/7/file").mock(return_value=httpx.Response(200, content=b"%PDF-fake"))
+    respx.post(f"{EXT}/api/v1/extract").mock(return_value=httpx.Response(200, json={"extracted_text": "texto", "char_count": 5}))
+    respx.post(f"{RES}/api/v1/summarize").mock(return_value=httpx.Response(200, json={"summary": "resumen", "input_char_count": 5, "summary_char_count": 7}))
+    respx.post(f"{NOT}/api/v1/estados").mock(return_value=httpx.Response(200, json={}))
+
+    r = client.post(
+        "/api/v1/procesar-completo",
+        data={"name": "Test"},
+        files={"file": ("test.pdf", b"%PDF-fake", "application/pdf")},
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["document_id"] == 7
+    assert body["exito"] is True
+    assert body["resumen"] == "resumen"
