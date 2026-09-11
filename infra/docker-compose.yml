@@ -10,9 +10,11 @@
 
 services:
   traefik:
-    image: traefik:v3.5
+    image: traefik:v3.6
     command:
       - --providers.docker=true
+      - --providers.docker.endpoint=unix:///var/run/docker.sock
+      - --providers.docker.network=infra_web
       - --providers.docker.exposedbydefault=false
       - --entrypoints.web.address=:80
       - --ping=true
@@ -21,6 +23,8 @@ services:
     ports:
       - "80:80"        # gateway
       - "8080:8080"    # dashboard de Traefik
+    environment:
+      DOCKER_API_VERSION: "1.44"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     networks: [web]
