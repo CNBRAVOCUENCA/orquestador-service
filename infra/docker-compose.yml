@@ -15,6 +15,7 @@ services:
       - --providers.docker=true
       - --providers.docker.exposedbydefault=false
       - --entrypoints.web.address=:80
+      - --ping=true
       - --api.dashboard=true
       - --api.insecure=true
     ports:
@@ -23,34 +24,77 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     networks: [web]
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    command: tunnel --no-autoupdate --url http://traefik:80
+    depends_on:
+      traefik:
+        condition: service_healthy
+    networks: [web]
 
   redis:
     image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
     networks: [web]
 
   mongo:
     image: mongo:8.0
     volumes:
       - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
     networks: [web]
 
   documentos:
-    build: ../../documentos-service
+    build:
+      context: ../../documentos-service
+      network: host
     environment:
       DATABASE_URL: mongodb://mongo:27017
       DATABASE_NAME: documentos_service
-    depends_on: [mongo]
+    depends_on:
+      mongo:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
     labels:
       - traefik.enable=true
       - traefik.http.routers.documentos.rule=Host(`documentos.localhost`)
+      - traefik.http.routers.documentos-public.rule=PathPrefix(`/api/v1/documents`)
+      - traefik.http.routers.documentos-public.priority=100
       - traefik.http.services.documentos.loadbalancer.server.port=8000
     networks: [web]
 
   extraccion:
-    build: ../../extraccion-service
+    build:
+      context: ../../extraccion-service
+      network: host
     environment:
       DOCUMENTOS_SERVICE_URL: http://documentos:8000
-    depends_on: [documentos]
+    depends_on:
+      documentos:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
     labels:
       - traefik.enable=true
       - traefik.http.routers.extraccion.rule=Host(`extraccion.localhost`)
@@ -58,9 +102,16 @@ services:
     networks: [web]
 
   resumen:
-    build: ../../resumen-service
+    build:
+      context: ../../resumen-service
+      network: host
     environment:
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
     labels:
       - traefik.enable=true
       - traefik.http.routers.resumen.rule=Host(`resumen.localhost`)
@@ -68,11 +119,20 @@ services:
     networks: [web]
 
   notificaciones:
-    build: ../../notificaciones-service
+    build:
+      context: ../../notificaciones-service
+      network: host
     environment:
       DATABASE_URL: mongodb://mongo:27017
       DATABASE_NAME: notificaciones_service
-    depends_on: [mongo]
+    depends_on:
+      mongo:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
     labels:
       - traefik.enable=true
       - traefik.http.routers.notificaciones.rule=Host(`notificaciones.localhost`)
@@ -80,17 +140,34 @@ services:
     networks: [web]
 
   orquestador:
-    build: ../
+    build:
+      context: ../
+      network: host
     environment:
       EXTRACCION_URL: http://extraccion:8000
       RESUMEN_URL: http://resumen:8000
       NOTIFICACIONES_URL: http://notificaciones:8000
       REDIS_URL: redis://redis:6379
       CACHE_ENABLED: "true"
-    depends_on: [extraccion, resumen, notificaciones, redis]
+    depends_on:
+      extraccion:
+        condition: service_healthy
+      resumen:
+        condition: service_healthy
+      notificaciones:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
     labels:
       - traefik.enable=true
       - traefik.http.routers.orquestador.rule=Host(`orquestador.localhost`)
+      - traefik.http.routers.orquestador-public.rule=PathPrefix(`/api/v1/procesar`)
+      - traefik.http.routers.orquestador-public.priority=100
       - traefik.http.services.orquestador.loadbalancer.server.port=8000
     networks: [web]
 
