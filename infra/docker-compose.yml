@@ -3,10 +3,8 @@
 # Uso:
 #   docker compose up --build
 #
-# Cada microservicio debe estar clonado como carpeta hermana de esta:
-#   ../documentos-service, ../extraccion-service, ../resumen-service,
-#   ../notificaciones-service, ../orquestador-service
-# (ajustar los `build:` si tu layout es distinto)
+# Los cuatro servicios dependientes se construyen directamente desde GitHub.
+# Solo hace falta clonar este repositorio y configurar GEMINI_API_KEY en .env.
 
 services:
   traefik:
@@ -64,7 +62,10 @@ services:
 
   documentos:
     build:
-      context: ../../documentos-service
+      context: .
+      dockerfile: Dockerfile.remote
+      args:
+        SERVICE_REPO: https://github.com/CNBRAVOCUENCA/documentos-service.git
       network: host
     environment:
       DATABASE_URL: mongodb://mongo:27017
@@ -82,12 +83,17 @@ services:
       - traefik.http.routers.documentos.rule=Host(`documentos.localhost`)
       - traefik.http.routers.documentos-public.rule=PathPrefix(`/api/v1/documents`)
       - traefik.http.routers.documentos-public.priority=100
+      - traefik.http.routers.documentos-docs.rule=PathPrefix(`/docs`) || Path(`/openapi.json`)
+      - traefik.http.routers.documentos-docs.priority=90
       - traefik.http.services.documentos.loadbalancer.server.port=8000
     networks: [web]
 
   extraccion:
     build:
-      context: ../../extraccion-service
+      context: .
+      dockerfile: Dockerfile.remote
+      args:
+        SERVICE_REPO: https://github.com/CNBRAVOCUENCA/extraccion-service.git
       network: host
     environment:
       DOCUMENTOS_SERVICE_URL: http://documentos:8000
@@ -107,7 +113,10 @@ services:
 
   resumen:
     build:
-      context: ../../resumen-service
+      context: .
+      dockerfile: Dockerfile.remote
+      args:
+        SERVICE_REPO: https://github.com/CNBRAVOCUENCA/resumen-service.git
       network: host
     environment:
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
@@ -124,7 +133,10 @@ services:
 
   notificaciones:
     build:
-      context: ../../notificaciones-service
+      context: .
+      dockerfile: Dockerfile.remote
+      args:
+        SERVICE_REPO: https://github.com/CNBRAVOCUENCA/notificaciones-service.git
       network: host
     environment:
       DATABASE_URL: mongodb://mongo:27017

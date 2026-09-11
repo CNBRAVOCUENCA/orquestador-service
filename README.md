@@ -52,6 +52,27 @@ test/                              # 14 tests (saga, compensación, cache, clien
 
 La respuesta siempre es 200 con el resultado: `{document_id, exito, estado_final, pasos_completados, resumen, error}`. Si la Saga falló, `exito=false` y `error` dice en qué paso.
 
+## Ejecución con Docker
+
+1. Instala Docker Desktop.
+2. Copia `.env.example` como `.env` y completa `GEMINI_API_KEY`.
+3. Ejecuta `iniciar.bat` en Windows o el siguiente comando en cualquier sistema:
+
+```bash
+docker compose -f infra/docker-compose.yml up -d --build --wait --wait-timeout 180
+```
+
+El Compose construye los servicios dependientes desde sus repositorios GitHub, por
+lo que no es necesario clonar carpetas hermanas. Para detener el sistema:
+
+```bash
+docker compose -f infra/docker-compose.yml down
+```
+
+Cuando `cloudflared` inicie, muestra en sus logs la URL pública temporal. El
+Swagger para cargar un documento está disponible en `/docs`; también se puede
+usar `POST /api/v1/documents` con form-data `name` y `file`.
+
 ## Instalación y tests
 
 Con **uv** (recomendado):
