@@ -8,7 +8,7 @@
 
 services:
   traefik:
-    image: traefik:v3.6
+    image: traefik@sha256:31267173a15b4944e797a76ffd9c419707c8d8b32fe5b610f80cd0cfa05f372d
     command:
       - --providers.docker=true
       - --providers.docker.endpoint=unix:///var/run/docker.sock
@@ -33,7 +33,7 @@ services:
       retries: 12
 
   cloudflared:
-    image: cloudflare/cloudflared:latest
+    image: cloudflare/cloudflared@sha256:b269e8abd07a5bf6f3f4be65d5050b2174eca89c56a0241a8ff32a16aec454e4
     command: tunnel --no-autoupdate --url http://traefik:80
     depends_on:
       traefik:
@@ -41,7 +41,7 @@ services:
     networks: [web]
 
   redis:
-    image: redis:7-alpine
+    image: redis@sha256:ff02b58f971e7d7d156a1267e283fcbbeee91773b6aa36c49dac28ecfe28eadf
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -50,7 +50,7 @@ services:
     networks: [web]
 
   mongo:
-    image: mongo:8.0
+    image: mongo@sha256:4a0f30875898413139bec44c73c02a05fed172578de65b644dcdcee143ae7306
     volumes:
       - mongo_data:/data/db
     healthcheck:
@@ -66,6 +66,7 @@ services:
       dockerfile: Dockerfile.remote
       args:
         SERVICE_REPO: https://github.com/CNBRAVOCUENCA/documentos-service.git
+        SERVICE_REF: 10df88e5ce4dd090e36ab3db670670591c004fb2
       network: host
     environment:
       DATABASE_URL: mongodb://mongo:27017
@@ -94,6 +95,7 @@ services:
       dockerfile: Dockerfile.remote
       args:
         SERVICE_REPO: https://github.com/CNBRAVOCUENCA/extraccion-service.git
+        SERVICE_REF: 1e694b619c60a7c42aaf8caf68a781219f1ef074
       network: host
     environment:
       DOCUMENTOS_SERVICE_URL: http://documentos:8000
@@ -117,6 +119,7 @@ services:
       dockerfile: Dockerfile.remote
       args:
         SERVICE_REPO: https://github.com/CNBRAVOCUENCA/resumen-service.git
+        SERVICE_REF: 4e6241266a756843c1cf6e053af3337ae4ccaf24
       network: host
     environment:
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
@@ -137,6 +140,7 @@ services:
       dockerfile: Dockerfile.remote
       args:
         SERVICE_REPO: https://github.com/CNBRAVOCUENCA/notificaciones-service.git
+        SERVICE_REF: 42459d5f228c79ca1597cefdac3801855c5f59ba
       network: host
     environment:
       DATABASE_URL: mongodb://mongo:27017

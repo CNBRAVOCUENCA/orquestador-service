@@ -7,12 +7,12 @@ Redis para cache.
 
 | Servicio | Rol | URL (vía Traefik) |
 |---|---|---|
-| Traefik | Gateway / reverse proxy | dashboard en `localhost:8080` |
-| documentos | Dueño del documento | `documentos.localhost` |
-| extraccion | PDF → texto | `extraccion.localhost` |
-| resumen | Texto → resumen IA | `resumen.localhost` |
-| notificaciones | Estado del flujo | `notificaciones.localhost` |
-| orquestador | Ejecuta la Saga | `orquestador.localhost` |
+| Traefik | Gateway / reverse proxy | dashboard en `http://localhost:8080` |
+| documentos | Dueño del documento | `http://documentos.localhost` |
+| extraccion | PDF → texto | `http://extraccion.localhost` |
+| resumen | Texto → resumen IA | `http://resumen.localhost` |
+| notificaciones | Estado del flujo | `http://notificaciones.localhost` |
+| orquestador | Ejecuta la Saga | `http://orquestador.localhost` |
 | redis | Cache de resultados | (interno) |
 | mongo | Base de datos | (interno) |
 
@@ -29,6 +29,28 @@ En `/etc/hosts` agregá:
 ```
 127.0.0.1 orquestador.localhost documentos.localhost extraccion.localhost resumen.localhost notificaciones.localhost
 ```
+
+En Windows, el archivo equivalente es `C:\Windows\System32\drivers\etc\hosts`.
+
+Si `80` o `8080` ya están ocupados, desde la raíz del workspace usa
+`docker-compose.local.yml`:
+
+```powershell
+$env:GEMINI_API_KEY = "tu_clave"
+docker compose -p ms -f orquestador-service/infra/docker-compose.yml -f docker-compose.local.yml up -d --wait --wait-timeout 180
+```
+
+Con ese override, las URLs locales son:
+
+| Recurso | URL |
+|---|---|
+| Gateway | `http://localhost:8081` |
+| Dashboard Traefik | `http://localhost:8088` |
+| Documentos | `http://documentos.localhost:8081` |
+| Extracción | `http://extraccion.localhost:8081` |
+| Resumen | `http://resumen.localhost:8081` |
+| Notificaciones | `http://notificaciones.localhost:8081` |
+| Orquestador | `http://orquestador.localhost:8081` |
 
 ## Probar el flujo completo
 

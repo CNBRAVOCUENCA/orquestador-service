@@ -63,7 +63,8 @@ docker compose -f infra/docker-compose.yml up -d --build --wait --wait-timeout 1
 ```
 
 El Compose construye los servicios dependientes desde sus repositorios GitHub, por
-lo que no es necesario clonar carpetas hermanas. Para detener el sistema:
+lo que no es necesario clonar carpetas hermanas. Las imágenes y los commits de los
+servicios remotos están fijados para que el build sea reproducible. Para detener el sistema:
 
 ```bash
 docker compose -f infra/docker-compose.yml down
@@ -72,6 +73,18 @@ docker compose -f infra/docker-compose.yml down
 Cuando `cloudflared` inicie, muestra en sus logs la URL pública temporal. El
 Swagger para cargar un documento está disponible en `/docs`; también se puede
 usar `POST /api/v1/documents` con form-data `name` y `file`.
+
+### Ejecución local con puertos alternativos
+
+Si los puertos `80` o `8080` están ocupados, desde la raíz del workspace usa el
+override local:
+
+```powershell
+docker compose -p ms -f orquestador-service/infra/docker-compose.yml -f docker-compose.local.yml up -d --wait --wait-timeout 180
+```
+
+En ese caso, la API queda publicada en `http://localhost:8081` y el dashboard de
+Traefik en `http://localhost:8088`.
 
 ## Instalación y tests
 
@@ -85,6 +98,9 @@ uv run --extra dev pytest test/ -v
 O con pip: `pip install -e ".[dev]" && pytest test/ -v`
 
 **14/14 en verde**: flujo feliz, compensación en cada paso, cache hit/miss, `forzar`, y el cliente HTTP mockeado con `respx`. No requieren Redis ni los otros servicios corriendo.
+
+El workflow de GitHub Actions ejecuta automáticamente esta suite en cada push y
+pull request.
 
 ## Pendiente futuro
 Retry y Circuit Breaker en `MicroserviciosClient`.
