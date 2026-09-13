@@ -66,7 +66,7 @@ services:
       dockerfile: Dockerfile.remote
       args:
         SERVICE_REPO: https://github.com/CNBRAVOCUENCA/documentos-service.git
-        SERVICE_REF: 10df88e5ce4dd090e36ab3db670670591c004fb2
+        SERVICE_REF: b5e5c88fe65e8b14137ea14708b102094b5faaa6
       network: host
     environment:
       DATABASE_URL: mongodb://mongo:27017
@@ -95,7 +95,7 @@ services:
       dockerfile: Dockerfile.remote
       args:
         SERVICE_REPO: https://github.com/CNBRAVOCUENCA/extraccion-service.git
-        SERVICE_REF: 1e694b619c60a7c42aaf8caf68a781219f1ef074
+        SERVICE_REF: 57b71e8775edca1ccefa0ba65b75f8dfee033c67
       network: host
     environment:
       DOCUMENTOS_SERVICE_URL: http://documentos:8000
@@ -119,10 +119,11 @@ services:
       dockerfile: Dockerfile.remote
       args:
         SERVICE_REPO: https://github.com/CNBRAVOCUENCA/resumen-service.git
-        SERVICE_REF: 4e6241266a756843c1cf6e053af3337ae4ccaf24
+        SERVICE_REF: 8114cfa42b01e58812183723111eecb2d5626506
       network: host
     environment:
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: gemini-3.5-flash
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 5s
@@ -140,7 +141,7 @@ services:
       dockerfile: Dockerfile.remote
       args:
         SERVICE_REPO: https://github.com/CNBRAVOCUENCA/notificaciones-service.git
-        SERVICE_REF: 42459d5f228c79ca1597cefdac3801855c5f59ba
+        SERVICE_REF: 9714bb8a2833f27bcc6eecb504de0eb8b6f8be6b
       network: host
     environment:
       DATABASE_URL: mongodb://mongo:27017
