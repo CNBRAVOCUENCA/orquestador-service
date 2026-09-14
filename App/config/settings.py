@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379"
     cache_ttl_seconds: int = 3600
     cache_enabled: bool = True
-    http_timeout_seconds: float = 30.0
+    http_timeout_seconds: float = 120.0
     api_v1_prefix: str = "/api/v1"
 
 
