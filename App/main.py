@@ -3,6 +3,8 @@
 from pathlib import Path
 
 from fastapi import FastAPI
+
+from App.logging_config import configurar_logging
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -14,6 +16,8 @@ from App.config.settings import settings
 docs_url = "/docs" if settings.debug else None
 redoc_url = "/redoc" if settings.debug else None
 openapi_url = "/openapi.json" if settings.debug else None
+
+configurar_logging()
 
 app = FastAPI(
     title=settings.app_name,
