@@ -66,7 +66,7 @@ services:
       dockerfile: Dockerfile.remote
       args:
         SERVICE_REPO: https://github.com/CNBRAVOCUENCA/documentos-service.git
-        SERVICE_REF: b5e5c88fe65e8b14137ea14708b102094b5faaa6
+        SERVICE_REF: 05b245e6941d5309ff83c333b7f966664a7ec38e
       network: host
     environment:
       DATABASE_URL: mongodb://mongo:27017
@@ -95,7 +95,7 @@ services:
       dockerfile: Dockerfile.remote
       args:
         SERVICE_REPO: https://github.com/CNBRAVOCUENCA/extraccion-service.git
-        SERVICE_REF: 57b71e8775edca1ccefa0ba65b75f8dfee033c67
+        SERVICE_REF: 4a4f318b75d803a3b7c43d0aca231b7e74c13d85
       network: host
     environment:
       DOCUMENTOS_SERVICE_URL: http://documentos:8000
@@ -110,6 +110,8 @@ services:
     labels:
       - traefik.enable=true
       - traefik.http.routers.extraccion.rule=Host(`extraccion.localhost`)
+      - traefik.http.routers.extraccion-public.rule=PathPrefix(`/api/v1/extract`)
+      - traefik.http.routers.extraccion-public.priority=100
       - traefik.http.services.extraccion.loadbalancer.server.port=8000
     networks: [web]
 
@@ -119,7 +121,7 @@ services:
       dockerfile: Dockerfile.remote
       args:
         SERVICE_REPO: https://github.com/CNBRAVOCUENCA/resumen-service.git
-        SERVICE_REF: 8114cfa42b01e58812183723111eecb2d5626506
+        SERVICE_REF: e8e6b8ce349ef20371d1cf622cc8348588ef5c5c
       network: host
     environment:
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
@@ -132,6 +134,8 @@ services:
     labels:
       - traefik.enable=true
       - traefik.http.routers.resumen.rule=Host(`resumen.localhost`)
+      - traefik.http.routers.resumen-public.rule=PathPrefix(`/api/v1/summarize`)
+      - traefik.http.routers.resumen-public.priority=100
       - traefik.http.services.resumen.loadbalancer.server.port=8000
     networks: [web]
 
@@ -141,7 +145,7 @@ services:
       dockerfile: Dockerfile.remote
       args:
         SERVICE_REPO: https://github.com/CNBRAVOCUENCA/notificaciones-service.git
-        SERVICE_REF: 9714bb8a2833f27bcc6eecb504de0eb8b6f8be6b
+        SERVICE_REF: 0c65772a1e2ab972f1f0466b7204c3dbe14b9941
       network: host
     environment:
       DATABASE_URL: mongodb://mongo:27017
@@ -157,6 +161,8 @@ services:
     labels:
       - traefik.enable=true
       - traefik.http.routers.notificaciones.rule=Host(`notificaciones.localhost`)
+      - traefik.http.routers.notificaciones-public.rule=PathPrefix(`/api/v1/estados`)
+      - traefik.http.routers.notificaciones-public.priority=100
       - traefik.http.services.notificaciones.loadbalancer.server.port=8000
     networks: [web]
 
