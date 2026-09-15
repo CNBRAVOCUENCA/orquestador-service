@@ -125,7 +125,7 @@ services:
       network: host
     environment:
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
-      GEMINI_MODEL: gemini-3.5-flash
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-flash-lite-latest}
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 5s
