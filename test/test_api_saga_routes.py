@@ -77,3 +77,19 @@ def test_procesar_completo_sube_y_orquesta(client):
     assert body["document_id"] == 7
     assert body["exito"] is True
     assert body["resumen"] == "resumen"
+
+
+@respx.mock
+def test_procesar_completo_rechaza_pdf_duplicado_con_conflicto(client):
+    respx.post("http://doc.test/api/v1/documents").mock(
+        return_value=httpx.Response(409, json={"detail": "Ya existe un documento con el mismo checksum"})
+    )
+
+    response = client.post(
+        "/api/v1/procesar-completo",
+        data={"name": "Duplicado"},
+        files={"file": ("duplicado.pdf", b"%PDF-fake", "application/pdf")},
+    )
+
+    assert response.status_code == 409
+    assert response.json() == {"detail": "HTTP 409: {\"detail\":\"Ya existe un documento con el mismo checksum\"}"}

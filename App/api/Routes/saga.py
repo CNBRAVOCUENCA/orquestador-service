@@ -2,9 +2,10 @@
 
 from functools import lru_cache
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 
 from App.config.settings import settings
+from App.exceptions import PasoSagaError
 from App.schemas.saga import ProcesarResponse
 from App.services.cache import Cache, InMemoryCache, RedisCache
 from App.services.microservicios_client import MicroserviciosClient
@@ -67,7 +68,11 @@ async def procesar_completo(
     contenido = await file.read()
     await file.close()
     # Subir el documento primero
-    document_id = await saga.client.subir_documento(name, file.filename, contenido)
+    try:
+        document_id = await saga.client.subir_documento(name, file.filename, contenido)
+    except PasoSagaError as exc:
+        status_code = 409 if "HTTP 409" in exc.detalle else 502
+        raise HTTPException(status_code=status_code, detail=exc.detalle) from exc
     # Ejecutar la Saga sobre ese documento
     resultado = await saga.procesar(document_id, forzar=True)
     return {"document_id": document_id, **resultado.model_dump()}
