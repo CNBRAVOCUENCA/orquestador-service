@@ -1,0 +1,11 @@
+services:
+  mongo:
+    image: mongo@sha256:4a0f30875898413139bec44c73c02a05fed172578de65b644dcdcee143ae7306
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    networks: [web]

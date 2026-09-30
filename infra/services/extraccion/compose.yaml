@@ -1,0 +1,26 @@
+services:
+  extraccion:
+    build:
+      context: ../..
+      dockerfile: Dockerfile.remote
+      args:
+        SERVICE_REPO: https://github.com/CNBRAVOCUENCA/extraccion-service.git
+        SERVICE_REF: 4a4f318b75d803a3b7c43d0aca231b7e74c13d85
+      network: host
+    environment:
+      DOCUMENTOS_SERVICE_URL: http://documentos:8000
+    depends_on:
+      documentos:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.extraccion.rule=Host(`extraccion.localhost`)
+      - traefik.http.routers.extraccion-public.rule=PathPrefix(`/api/v1/extract`)
+      - traefik.http.routers.extraccion-public.priority=100
+      - traefik.http.services.extraccion.loadbalancer.server.port=8000
+    networks: [web]

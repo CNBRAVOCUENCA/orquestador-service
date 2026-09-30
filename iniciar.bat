@@ -12,11 +12,11 @@ echo Iniciando microservicios...
 docker compose --env-file .env -f infra\docker-compose.yml up -d --build --wait --wait-timeout 180
 if errorlevel 1 (
   echo No se pudo iniciar el stack. Ejecuta:
-  echo docker compose -f infra\docker-compose.yml ps
+  echo docker compose --env-file .env -f infra\docker-compose.yml ps
   pause
   exit /b 1
 )
 
 echo Stack saludable. URL publica:
-docker compose -f infra\docker-compose.yml logs --tail=30 cloudflared
+docker compose --env-file .env -f infra\docker-compose.yml logs --tail=30 cloudflared
 pause

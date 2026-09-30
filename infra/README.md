@@ -16,13 +16,22 @@ Redis para cache.
 | redis | Cache de resultados | (interno) |
 | mongo | Base de datos | (interno) |
 
+## Archivos por servicio
+
+`docker-compose.yml` es el punto de entrada y agrega las definiciones de
+`services/<nombre>/compose.yaml`. Cada carpeta contiene la configuracion de un
+componente; la red `web` y el volumen `mongo_data` se definen una sola vez en el
+Compose principal. `App/services/` es codigo Python del orquestador y no contiene
+archivos de despliegue.
+
+Se requiere Docker Compose v2.20 o posterior por la directiva `include`.
+
 ## Levantar todo
 
-Cloná los 5 microservicios como carpetas hermanas y desde `infra/`:
+Desde la raiz de `orquestador-service`, inicia el stack con:
 
 ```bash
-export GEMINI_API_KEY=tu_clave   # para que resumen funcione de verdad
-docker compose up --build
+docker compose --env-file .env -f infra/docker-compose.yml up -d --build
 ```
 
 En `/etc/hosts` agregá:

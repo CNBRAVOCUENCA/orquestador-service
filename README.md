@@ -54,20 +54,22 @@ La respuesta siempre es 200 con el resultado: `{document_id, exito, estado_final
 
 ## Ejecución con Docker
 
-1. Instala Docker Desktop.
+1. Instala Docker Desktop y Docker Compose v2.20 o posterior (se usa `include`).
 2. Copia `.env.example` como `.env` y completa `GEMINI_API_KEY`.
 3. Ejecuta `iniciar.bat` en Windows o el siguiente comando en cualquier sistema:
 
 ```bash
-docker compose -f infra/docker-compose.yml up -d --build --wait --wait-timeout 180
+docker compose --env-file .env -f infra/docker-compose.yml up -d --build --wait --wait-timeout 180
 ```
 
-El Compose construye los servicios dependientes desde sus repositorios GitHub, por
-lo que no es necesario clonar carpetas hermanas. Las imágenes y los commits de los
-servicios remotos están fijados para que el build sea reproducible. Para detener el sistema:
+`infra/docker-compose.yml` es el punto de entrada e incluye una definicion por
+componente desde `infra/services/<servicio>/compose.yaml`. Los servicios
+dependientes se construyen desde sus repositorios GitHub, por lo que no es
+necesario clonar carpetas hermanas. Las referencias remotas estan fijadas para
+que el build sea reproducible. Para detener el sistema:
 
 ```bash
-docker compose -f infra/docker-compose.yml down
+docker compose --env-file .env -f infra/docker-compose.yml down
 ```
 
 Cuando `cloudflared` inicie, muestra en sus logs la URL pública temporal. El

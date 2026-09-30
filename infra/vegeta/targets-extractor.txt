@@ -1,3 +1,4 @@
-POST http://host.docker.internal:8002/api/v1/extract
+POST http://host.docker.internal/api/v1/extract
+Host: extraccion.localhost
 Content-Type: application/json
 @extractor-body.json

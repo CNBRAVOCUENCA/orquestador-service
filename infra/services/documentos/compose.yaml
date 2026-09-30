@@ -1,0 +1,29 @@
+services:
+  documentos:
+    build:
+      context: ../..
+      dockerfile: Dockerfile.remote
+      args:
+        SERVICE_REPO: https://github.com/CNBRAVOCUENCA/documentos-service.git
+        SERVICE_REF: 05b245e6941d5309ff83c333b7f966664a7ec38e
+      network: host
+    environment:
+      DATABASE_URL: mongodb://mongo:27017
+      DATABASE_NAME: documentos_service
+    depends_on:
+      mongo:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.documentos.rule=Host(`documentos.localhost`)
+      - traefik.http.routers.documentos-public.rule=PathPrefix(`/api/v1/documents`)
+      - traefik.http.routers.documentos-public.priority=100
+      - traefik.http.routers.documentos-docs.rule=PathPrefix(`/docs`) || Path(`/openapi.json`)
+      - traefik.http.routers.documentos-docs.priority=90
+      - traefik.http.services.documentos.loadbalancer.server.port=8000
+    networks: [web]

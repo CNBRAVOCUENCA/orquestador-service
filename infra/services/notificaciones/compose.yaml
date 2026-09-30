@@ -1,0 +1,27 @@
+services:
+  notificaciones:
+    build:
+      context: ../..
+      dockerfile: Dockerfile.remote
+      args:
+        SERVICE_REPO: https://github.com/CNBRAVOCUENCA/notificaciones-service.git
+        SERVICE_REF: 0c65772a1e2ab972f1f0466b7204c3dbe14b9941
+      network: host
+    environment:
+      DATABASE_URL: mongodb://mongo:27017
+      DATABASE_NAME: notificaciones_service
+    depends_on:
+      mongo:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.notificaciones.rule=Host(`notificaciones.localhost`)
+      - traefik.http.routers.notificaciones-public.rule=PathPrefix(`/api/v1/estados`)
+      - traefik.http.routers.notificaciones-public.priority=100
+      - traefik.http.services.notificaciones.loadbalancer.server.port=8000
+    networks: [web]

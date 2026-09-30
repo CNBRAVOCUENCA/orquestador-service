@@ -1,0 +1,24 @@
+services:
+  resumen:
+    build:
+      context: ../..
+      dockerfile: Dockerfile.remote
+      args:
+        SERVICE_REPO: https://github.com/CNBRAVOCUENCA/resumen-service.git
+        SERVICE_REF: e8e6b8ce349ef20371d1cf622cc8348588ef5c5c
+      network: host
+    environment:
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-flash-lite-latest}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.resumen.rule=Host(`resumen.localhost`)
+      - traefik.http.routers.resumen-public.rule=PathPrefix(`/api/v1/summarize`)
+      - traefik.http.routers.resumen-public.priority=100
+      - traefik.http.services.resumen.loadbalancer.server.port=8000
+    networks: [web]
