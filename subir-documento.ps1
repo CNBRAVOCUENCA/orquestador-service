@@ -7,6 +7,10 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+$vegetaDirectory = Join-Path $PSScriptRoot "infra\vegeta"
+if (-not (Test-Path -LiteralPath $vegetaDirectory -PathType Container)) {
+    throw "No se encontro la carpeta infra\vegeta. Ejecuta este script desde el proyecto principal."
+}
 
 if (-not (Test-Path -LiteralPath $PdfPath -PathType Leaf)) {
     throw "No se encontro el archivo: $PdfPath"
@@ -54,8 +58,8 @@ try {
 
     $documentId = [int]$response.id
     $body = @{ document_id = $documentId } | ConvertTo-Json -Compress
-    [IO.File]::WriteAllText((Join-Path $PSScriptRoot "document-id.txt"), [string]$documentId, [Text.Encoding]::ASCII)
-    [IO.File]::WriteAllText((Join-Path $PSScriptRoot "extractor-body.json"), $body, [Text.Encoding]::ASCII)
+    [IO.File]::WriteAllText((Join-Path $vegetaDirectory "document-id.txt"), [string]$documentId, [Text.Encoding]::ASCII)
+    [IO.File]::WriteAllText((Join-Path $vegetaDirectory "extractor-body.json"), $body, [Text.Encoding]::ASCII)
 
     Write-Host "PDF subido correctamente. document_id=$documentId"
 }

@@ -21,18 +21,19 @@ esta activo:
 .\iniciar.bat
 ```
 
-Luego ejecuta los dos BAT, en este orden:
+Luego ejecuta los dos BAT desde la raiz, en este orden:
 
 ```powershell
-.\infra\vegeta\subir-pdf.bat
-.\infra\vegeta\ejecutar-vegeta.bat
+.\subir-pdf.bat
+.\ejecutar-vegeta.bat
 ```
 
 `subir-pdf.bat` pide la ruta del PDF y un nombre, lo sube a documentos-service y
 guarda el `document_id` en `infra/vegeta/document-id.txt` y
 `infra/vegeta/extractor-body.json`. `ejecutar-vegeta.bat` usa ese ID, pregunta
 la tasa y duracion (por defecto 2 solicitudes/s durante 5s), ejecuta Vegeta
-contra el extractor pasando por Traefik y muestra el reporte.
+contra el extractor pasando por Traefik y muestra el reporte. Ambos BAT y
+`subir-documento.ps1` estan junto a `iniciar.bat`.
 
 El ataque usa el endpoint del extractor directamente, no el orquestador. La
 primera vez que se ejecute, Docker puede descargar `peterevans/vegeta:latest`;

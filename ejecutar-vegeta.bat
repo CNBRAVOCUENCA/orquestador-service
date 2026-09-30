@@ -2,14 +2,21 @@
 setlocal
 cd /d "%~dp0"
 
-if not exist "%~dp0document-id.txt" (
+set "VEGETA_DIR=%~dp0infra\vegeta"
+set "ID_FILE=%VEGETA_DIR%\document-id.txt"
+if not exist "%ID_FILE%" (
   echo Primero ejecuta subir-pdf.bat para subir un PDF y guardar su ID.
+  pause
+  exit /b 1
+)
+if not exist "%VEGETA_DIR%\targets-extractor.txt" (
+  echo No se encontro infra\vegeta\targets-extractor.txt.
   pause
   exit /b 1
 )
 
 set "DOCUMENT_ID="
-set /p "DOCUMENT_ID=" < "%~dp0document-id.txt"
+set /p "DOCUMENT_ID=" < "%ID_FILE%"
 if not defined DOCUMENT_ID (
   echo document-id.txt esta vacio. Vuelve a subir el PDF.
   pause
@@ -28,7 +35,6 @@ for /f %%I in ('powershell.exe -NoLogo -NoProfile -Command "Get-Date -Format yyy
 if not defined STAMP set "STAMP=prueba"
 set "RESULTS=extractor-results-%STAMP%.bin"
 set "REPORT=extractor-report-%STAMP%.txt"
-set "VEGETA_DIR=%~dp0."
 set "VEGETA_IMAGE=extractor-vegeta:local"
 
 docker image inspect %VEGETA_IMAGE% >nul 2>&1
@@ -47,7 +53,7 @@ if errorlevel 1 (
   exit /b 1
 )
 
-docker run --rm -v "%VEGETA_DIR%:/work" -w /work --entrypoint sh %VEGETA_IMAGE% -c "vegeta report -type=text %RESULTS%" > "%~dp0%REPORT%"
+docker run --rm -v "%VEGETA_DIR%:/work" -w /work --entrypoint sh %VEGETA_IMAGE% -c "vegeta report -type=text %RESULTS%" > "%VEGETA_DIR%\%REPORT%"
 if errorlevel 1 (
   echo No se pudo generar el reporte.
   pause
@@ -55,8 +61,8 @@ if errorlevel 1 (
 )
 
 echo Reporte:
-type "%~dp0%REPORT%"
+type "%VEGETA_DIR%\%REPORT%"
 echo.
-echo Resultados: %RESULTS%
-echo Reporte guardado: %REPORT%
+echo Resultados: infra\vegeta\%RESULTS%
+echo Reporte guardado: infra\vegeta\%REPORT%
 pause
