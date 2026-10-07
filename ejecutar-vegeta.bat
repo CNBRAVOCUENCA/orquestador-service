@@ -28,8 +28,10 @@ set /p "RATE=Solicitudes por segundo [2]: "
 if not defined RATE set "RATE=2"
 
 set "DURATION="
-set /p "DURATION=Duracion, por ejemplo 5s [5s]: "
+set /p "DURATION=Duracion (10 significa 10 segundos; tambien puedes usar 1m) [5s]: "
 if not defined DURATION set "DURATION=5s"
+echo(%DURATION%|findstr /r /x "[0-9][0-9]*" >nul
+if not errorlevel 1 set "DURATION=%DURATION%s"
 
 for /f %%I in ('powershell.exe -NoLogo -NoProfile -Command "Get-Date -Format yyyyMMdd-HHmmss"') do set "STAMP=%%I"
 if not defined STAMP set "STAMP=prueba"
