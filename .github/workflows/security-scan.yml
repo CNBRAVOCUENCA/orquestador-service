@@ -1,0 +1,59 @@
+name: Security scan
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # Lunes 06:00 UTC: detecta CVEs nuevas aunque no haya cambios en el codigo
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  SERVICE_DIR: "."
+  IMAGE_NAME: pdf-service:scan
+
+jobs:
+  dependency-audit:
+    name: pip-audit (dependencias)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: astral-sh/setup-uv@v5
+
+      - name: Auditar dependencias con pip-audit
+        working-directory: ${{ env.SERVICE_DIR }}
+        run: |
+          pip install pip-audit
+          if [ -f uv.lock ]; then
+            uv export --frozen --no-dev --no-hashes --no-emit-project -o requirements-audit.txt
+            pip-audit -r requirements-audit.txt --no-deps --strict --desc on
+          else
+            pip-audit . --strict --desc on
+          fi
+
+  image-scan:
+    name: Trivy (imagen Docker)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Construir imagen
+        run: docker build -t "$IMAGE_NAME" "$SERVICE_DIR"
+
+      - name: Escanear imagen con Trivy
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ env.IMAGE_NAME }}
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          format: table
+          exit-code: "1"
