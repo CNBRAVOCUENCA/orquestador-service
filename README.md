@@ -109,3 +109,33 @@ Retry y Circuit Breaker en `MicroserviciosClient`.
 
 ## Stack
 Python 3.12+ · FastAPI · httpx · redis · pytest + respx
+
+Escaneo de vulnerabilidades
+
+El workflow .github/workflows/security-scan.yml corre en cada push a main, en cada pull request, una vez por semana (lunes) y a mano desde la pestaña Actions.
+
+Qué se analiza
+Job	Herramienta	Qué revisa	Cuándo falla
+dependency-audit	pip-audit	Dependencias de runtime exportadas desde uv.lock (sin las de desarrollo)	Si alguna versión fijada tiene una vulnerabilidad conocida
+image-scan	Trivy	La imagen Docker construida (paquetes del sistema y de Python)	Si hay vulnerabilidades de severidad HIGH o CRITICAL
+
+No se usan .trivyignore ni --ignore-unfixed. Cualquier excepción futura debe agregarse con justificación escrita en el pull request.
+
+Cómo correrlo localmente
+bash
+# Dependencias
+uv export --frozen --no-dev --no-hashes --no-emit-project -o requirements-audit.txt
+pip install pip-audit
+pip-audit -r requirements-audit.txt --no-deps --strict --desc on
+
+# Imagen
+docker build -t pdf-service:scan .
+docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+  aquasec/trivy:latest image --severity HIGH,CRITICAL --exit-code 1 pdf-service:scan
+Cómo interpretar la salida
+pip-audit lista paquete, versión instalada, ID de la vulnerabilidad (PYSEC o CVE) y versión que la corrige (Fix Versions). Solución: subir esa dependencia en pyproject.toml, regenerar con uv lock y volver a correr.
+Trivy muestra una tabla con Library, Vulnerability (CVE), Severity, Installed Version y Fixed Version.
+Si el paquete es del sistema (Debian), conviene actualizar la imagen base o reconstruir.
+Si es de Python, se actualiza igual que con pip-audit.
+Si Fixed Version está vacío, todavía no hay parche: se registra en un issue y se revisa en la corrida semanal.
+Exit code 0 = sin hallazgos que bloqueen. Exit code 1 = hay que corregir antes de mergear.
