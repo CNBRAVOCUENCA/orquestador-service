@@ -26,6 +26,14 @@ archivos de despliegue.
 
 Se requiere Docker Compose v2.20 o posterior por la directiva `include`.
 
+## Dependencias reproducibles
+
+Todas las imagenes instalan con `uv sync --locked --no-dev` a partir del `uv.lock`
+del servicio. `Dockerfile.remote` clona cada servicio en el commit fijado por
+`SERVICE_REF` y copia su `pyproject.toml` y su `uv.lock`: al subir un servicio a
+un commit nuevo, ese commit debe incluir su `uv.lock` actualizado (`uv lock`),
+o el build falla a proposito en lugar de instalar versiones distintas.
+
 ## Levantar todo
 
 Desde la raiz de `orquestador-service`, inicia el stack con:
