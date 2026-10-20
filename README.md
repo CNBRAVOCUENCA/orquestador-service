@@ -90,14 +90,21 @@ Traefik en `http://localhost:8088`.
 
 ## Instalación y tests
 
-Con **uv** (recomendado):
+El gestor de dependencias del proyecto es **uv** (version fijada: `0.11.32`).
+`pyproject.toml` declara las dependencias y `uv.lock` fija las versiones exactas;
+el mismo `uv.lock` se usa en desarrollo, Docker y CI.
 
 ```bash
-uv sync --extra dev
-uv run --extra dev pytest test/ -v
+uv sync --locked --extra dev
+uv run --locked --extra dev pytest test/ -v
 ```
 
-O con pip: `pip install -e ".[dev]" && pytest test/ -v`
+`--locked` falla si `uv.lock` no coincide con `pyproject.toml`, en vez de resolver
+versiones nuevas en silencio. Si cambias una dependencia en `pyproject.toml`, corre
+`uv lock` y commitea tambien `uv.lock`. Para comprobarlo: `uv lock --check`.
+
+Ya no se documenta `pip install -e .`: instala versiones sin fijar y no es
+reproducible. El `Dockerfile` y `infra/Dockerfile.remote` usan `uv sync --locked --no-dev`.
 
 **14/14 en verde**: flujo feliz, compensación en cada paso, cache hit/miss, `forzar`, y el cliente HTTP mockeado con `respx`. No requieren Redis ni los otros servicios corriendo.
 
