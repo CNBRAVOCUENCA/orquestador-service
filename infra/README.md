@@ -32,7 +32,11 @@ Todas las imagenes instalan con `uv sync --locked --no-dev` a partir del `uv.loc
 del servicio. `Dockerfile.remote` clona cada servicio en el commit fijado por
 `SERVICE_REF` y copia su `pyproject.toml` y su `uv.lock`: al subir un servicio a
 un commit nuevo, ese commit debe incluir su `uv.lock` actualizado (`uv lock`),
-o el build falla a proposito en lugar de instalar versiones distintas.
+o el build falla a proposito en lugar de instalar versiones distintas. Los
+Dockerfiles usan etapas separadas para instalar dependencias; las imagenes
+finales contienen el entorno virtual y el codigo de la aplicacion, no las
+herramientas de construccion (`git` ni `uv`). Las dependencias se instalan antes
+de copiar el codigo para reutilizar la capa cuando solo cambia la aplicacion.
 
 ## Levantar todo
 
