@@ -7,9 +7,10 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$vegetaDirectory = Join-Path $PSScriptRoot "infra\vegeta"
+$projectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
+$vegetaDirectory = Join-Path $projectRoot "infra\vegeta"
 if (-not (Test-Path -LiteralPath $vegetaDirectory -PathType Container)) {
-    throw "No se encontro la carpeta infra\vegeta. Ejecuta este script desde el proyecto principal."
+    throw "No se encontro la carpeta infra\vegeta dentro del proyecto."
 }
 
 if (-not (Test-Path -LiteralPath $PdfPath -PathType Leaf)) {

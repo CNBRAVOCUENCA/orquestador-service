@@ -6,43 +6,58 @@ les dispara tráfico y mide la respuesta.
 
 ## Requisitos
 
-- El stack levantado con `iniciar.bat` desde Windows o `docker compose up --build`
-  desde `infra/`.
-- Docker Desktop activo. Vegeta corre dentro de Docker; no hace falta instalarlo
-  en Windows.
+- El stack levantado con `z-scrips-automaticos/linux/iniciar.py` o Docker
+  Compose.
+- Docker activo. Vegeta corre dentro de Docker; no hace falta instalarlo en el
+  sistema anfitrión.
 - El PDF que se vaya a probar debe ser valido y no estar duplicado.
 
-## Uso en Windows con los archivos BAT
+## Uso en Linux y macOS
 
 Desde la raiz de `orquestador-service`, primero levanta el stack si todavia no
 esta activo:
 
-```powershell
-.\iniciar.bat
+```bash
+python3 z-scrips-automaticos/linux/iniciar.py
 ```
 
-Luego ejecuta los dos BAT desde la raiz, en este orden:
+Luego ejecuta los scripts en este orden:
 
-```powershell
-.\subir-pdf.bat
-.\ejecutar-vegeta.bat
+```bash
+python3 z-scrips-automaticos/linux/subir_pdf.py
+python3 z-scrips-automaticos/linux/ejecutar_vegeta.py
 ```
 
-`subir-pdf.bat` pide la ruta del PDF y un nombre, lo sube a documentos-service y
+`subir_pdf.py` pide la ruta del PDF y un nombre, lo sube a documentos-service y
 guarda el `document_id` en `infra/vegeta/document-id.txt` y
-`infra/vegeta/extractor-body.json`. `ejecutar-vegeta.bat` usa ese ID, pregunta
+`infra/vegeta/extractor-body.json`. `ejecutar_vegeta.py` usa esos archivos, pregunta
 la tasa y duracion (por defecto 2 solicitudes/s durante 5s), ejecuta Vegeta
-contra el extractor pasando por Traefik y muestra el reporte. Ambos BAT y
-`subir-documento.ps1` estan junto a `iniciar.bat`.
+contra el extractor pasando por Traefik y muestra el reporte. El código Python
+está en `z-scrips-automaticos/linux/`; los lanzadores BAT están en
+`z-scrips-automaticos/windows/`.
 
 El ataque usa el endpoint del extractor directamente, no el orquestador. La
 primera vez que se ejecute, Docker puede descargar `peterevans/vegeta:latest`;
 si ya esta disponible localmente, no necesita descargarla de nuevo. Los
 resultados quedan en archivos `extractor-results-<fecha>.bin` y
 `extractor-report-<fecha>.txt` dentro de `infra/vegeta`.
+El archivo histórico vacío `extractor-results-100.bin` también está en esta
+carpeta; las pruebas nuevas generan nombres con fecha.
 
-Para probar otro PDF, vuelve a ejecutar `subir-pdf.bat` y luego
-`ejecutar-vegeta.bat`. Si el servicio responde HTTP 409 porque el PDF ya
+## Uso en Windows
+
+Los archivos BAT están en `z-scrips-automaticos/windows/` y ejecutan los
+scripts Python compartidos de `z-scrips-automaticos/linux/`:
+
+```powershell
+.\z-scrips-automaticos\windows\iniciar.bat
+.\z-scrips-automaticos\windows\subir-pdf.bat
+.\z-scrips-automaticos\windows\ejecutar-vegeta.bat
+```
+
+Para probar otro PDF, vuelve a ejecutar `subir_pdf.py` y luego
+`ejecutar_vegeta.py` desde `z-scrips-automaticos/linux/` (o usa sus lanzadores
+Windows). Si el servicio responde HTTP 409 porque el PDF ya
 existe, usa un PDF diferente o conserva el ID original; no lo subas de nuevo.
 
 ## Correr un ataque

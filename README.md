@@ -56,11 +56,18 @@ La respuesta siempre es 200 con el resultado: `{document_id, exito, estado_final
 
 1. Instala Docker Desktop y Docker Compose v2.20 o posterior (se usa `include`).
 2. Copia `.env.example` como `.env` y completa `GEMINI_API_KEY`.
-3. Ejecuta `iniciar.bat` en Windows o el siguiente comando en cualquier sistema:
+3. Ejecuta el script multiplataforma:
 
 ```bash
-docker compose --env-file .env -f infra/docker-compose.yml up -d --build --wait --wait-timeout 180
+python3 z-scrips-automaticos/linux/copiar_env.py
+python3 z-scrips-automaticos/linux/iniciar.py
 ```
+
+En Windows, ejecuta `z-scrips-automaticos\windows\copiar-env.bat` y
+`z-scrips-automaticos\windows\iniciar.bat`. Los scripts Python para Linux están
+en `z-scrips-automaticos/linux/`; consulta
+`z-scrips-automaticos/README.md` para subir un PDF, ejecutar Vegeta y detener
+el stack.
 
 `infra/docker-compose.yml` es el punto de entrada e incluye una definicion por
 componente desde `infra/services/<servicio>/compose.yaml`. Los servicios
@@ -69,7 +76,7 @@ necesario clonar carpetas hermanas. Las referencias remotas estan fijadas para
 que el build sea reproducible. Para detener el sistema:
 
 ```bash
-docker compose --env-file .env -f infra/docker-compose.yml down
+python3 z-scrips-automaticos/linux/detener.py
 ```
 
 Cuando `cloudflared` inicie, muestra en sus logs la URL pública temporal. El

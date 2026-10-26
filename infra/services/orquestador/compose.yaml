@@ -29,7 +29,7 @@ services:
       retries: 12
     labels:
       - traefik.enable=true
-      - traefik.http.routers.orquestador.rule=Host(`orquestador.localhost`)
+      - "traefik.http.routers.orquestador.rule=Host(`${ORQUESTADOR_HOST:-orquestador.localhost}`)"
       - traefik.http.routers.orquestador-public.rule=PathPrefix(`/api/v1/procesar`)
       - traefik.http.routers.orquestador-public.priority=100
       - traefik.http.services.orquestador.loadbalancer.server.port=8000

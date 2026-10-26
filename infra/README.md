@@ -16,6 +16,11 @@ Redis para cache.
 | redis | Cache de resultados | (interno) |
 | mongo | Base de datos | (interno) |
 
+El host de entrada del orquestador se configura con `ORQUESTADOR_HOST` en el
+archivo `.env`. Su valor predeterminado es `orquestador.localhost`; si se cambia,
+usa ese mismo nombre en el navegador y actualiza la entrada correspondiente
+del archivo `hosts` de Windows.
+
 ## Archivos por servicio
 
 `docker-compose.yml` es el punto de entrada y agrega las definiciones de
@@ -25,6 +30,9 @@ Compose principal. `App/services/` es codigo Python del orquestador y no contien
 archivos de despliegue.
 
 Se requiere Docker Compose v2.20 o posterior por la directiva `include`.
+
+Los cuerpos de solicitud de ejemplo están en `infra/examples/`; resultados de
+Vegeta y sus configuraciones están en `infra/vegeta/`.
 
 ## Dependencias reproducibles
 
@@ -40,11 +48,18 @@ de copiar el codigo para reutilizar la capa cuando solo cambia la aplicacion.
 
 ## Levantar todo
 
-Desde la raiz de `orquestador-service`, inicia el stack con:
+Desde la raiz de `orquestador-service`, inicia el stack con Python:
 
 ```bash
-docker compose --env-file .env -f infra/docker-compose.yml up -d --build
+python3 z-scrips-automaticos/linux/copiar_env.py
+python3 z-scrips-automaticos/linux/iniciar.py
 ```
+
+En Windows están disponibles los lanzadores
+`z-scrips-automaticos\windows\copiar-env.bat` y
+`z-scrips-automaticos\windows\iniciar.bat`. Los scripts Python están en
+`z-scrips-automaticos/linux/`; `z-scrips-automaticos/README.md` documenta todos
+los comandos.
 
 En `/etc/hosts` agregá:
 ```
