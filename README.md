@@ -149,7 +149,8 @@ docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
 Cómo interpretar la salida
 pip-audit lista paquete, versión instalada, ID de la vulnerabilidad (PYSEC o CVE) y versión que la corrige (Fix Versions). Solución: subir esa dependencia en pyproject.toml, regenerar con uv lock y volver a correr.
 Trivy muestra una tabla con Library, Vulnerability (CVE), Severity, Installed Version y Fixed Version.
-Si el paquete es del sistema (Debian), conviene actualizar la imagen base o reconstruir.
+Si el paquete es del sistema (Alpine), revisa `Fixed Version` y actualiza el paquete
+con `apk` o renueva la imagen base.
 Si es de Python, se actualiza igual que con pip-audit.
 Si Fixed Version está vacío, todavía no hay parche: se registra en un issue y se revisa en la corrida semanal.
 Exit code 0 = sin hallazgos que bloqueen. Exit code 1 = hay que corregir antes de mergear.

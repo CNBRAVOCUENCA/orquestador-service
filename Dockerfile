@@ -1,4 +1,6 @@
-FROM python:3.12-slim AS builder
+FROM python:3.12-alpine AS builder
+
+RUN apk upgrade --no-cache
 
 # uv fijado a una version exacta para que el build sea reproducible
 COPY --from=ghcr.io/astral-sh/uv:0.11.32 /uv /usr/local/bin/uv
@@ -16,7 +18,9 @@ RUN uv sync --locked --no-dev --no-install-project
 COPY App ./App
 RUN uv sync --locked --no-dev
 
-FROM python:3.12-slim AS runtime
+FROM python:3.12-alpine AS runtime
+
+RUN apk upgrade --no-cache
 
 WORKDIR /app
 
@@ -24,9 +28,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PATH="/opt/venv/bin:$PATH"
 
-RUN groupadd --system app \
-	&& useradd --system --gid app --no-create-home appuser \
-	&& chown -R appuser:app /app
+RUN addgroup -S app \
+    && adduser -S -G app -H appuser \
+    && chown -R appuser:app /app
 
 COPY --from=builder --chown=appuser:app /opt/venv /opt/venv
 COPY --from=builder --chown=appuser:app /app/App ./App
