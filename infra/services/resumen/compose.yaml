@@ -5,7 +5,7 @@ services:
       dockerfile: Dockerfile.remote
       args:
         SERVICE_REPO: https://github.com/CNBRAVOCUENCA/resumen-service.git
-        SERVICE_REF: 328fca6c918e077e5fbfbb5c9310a3ef694e94c6
+        SERVICE_REF: c1e949be87174e5b13eff561e518a25694aca260
       network: host
     environment:
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}

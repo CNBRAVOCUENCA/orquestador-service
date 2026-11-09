@@ -5,7 +5,7 @@ services:
       dockerfile: Dockerfile.remote
       args:
         SERVICE_REPO: https://github.com/CNBRAVOCUENCA/notificaciones-service.git
-        SERVICE_REF: 818bcab4894b10f577fc1c31fc1ee1f15b70b850
+        SERVICE_REF: 36724ef44e7f7abbb5b52f8fec514ebdd46836ca
       network: host
     environment:
       DATABASE_URL: mongodb://mongo:27017

@@ -5,7 +5,7 @@ services:
       dockerfile: Dockerfile.remote
       args:
         SERVICE_REPO: https://github.com/CNBRAVOCUENCA/extraccion-service.git
-        SERVICE_REF: 416e561ea437e80ced7adc223312ac26670d237b
+        SERVICE_REF: ccafe0a259c885d561e10871106670bd14fe2e10
         # PyMuPDF: extracción rápida a Markdown (endpoint síncrono /extract del TP).
         UV_EXTRAS: --extra fast
       network: host
