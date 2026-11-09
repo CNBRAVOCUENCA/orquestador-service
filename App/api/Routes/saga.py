@@ -1,8 +1,11 @@
-"""Rutas REST del orquestador."""
+"""Rutas REST del orquestador.
+
+Las rutas solo traducen HTTP <-> dominio: la lógica vive en SagaService.
+"""
 
 from functools import lru_cache
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
 from App.config.settings import settings
 from App.exceptions import PasoSagaError
@@ -11,20 +14,19 @@ from App.services.cache import Cache, InMemoryCache, RedisCache
 from App.services.microservicios_client import MicroserviciosClient
 from App.services.saga_service import SagaService
 
+router = APIRouter(tags=["orquestador"])
+
 
 @lru_cache(maxsize=1)
 def _get_cache() -> Cache:
-    """Devuelve el cache real (Redis) o uno en memoria si está deshabilitado."""
+    """Devuelve el cache real (Redis) o uno en memoria si está deshabilitado.
+
+    RedisCache conecta de forma perezosa y tolera que Redis esté caído, así que
+    no hace falta envolver la creación en try/except.
+    """
     if not settings.cache_enabled:
         return InMemoryCache()
-    try:
-        return RedisCache(settings.redis_url, settings.cache_ttl_seconds)
-    except Exception:
-        # Si Redis no está disponible al arrancar, degradar a cache en memoria
-        return InMemoryCache()
-
-
-router = APIRouter(tags=["orquestador"])
+    return RedisCache(settings.redis_url, settings.cache_ttl_seconds)
 
 
 def _get_saga() -> SagaService:
@@ -39,7 +41,11 @@ def _get_saga() -> SagaService:
 
 
 @router.post("/procesar/{document_id}", response_model=ProcesarResponse)
-async def procesar(document_id: int, forzar: bool = False, saga: SagaService = Depends(_get_saga)) -> ProcesarResponse:
+async def procesar(
+    document_id: int,
+    forzar: bool = False,
+    saga: SagaService = Depends(_get_saga),
+) -> ProcesarResponse:
     """Ejecuta la Saga completa para un documento: extraer -> resumir -> notificar.
 
     Si el documento ya fue procesado con éxito, devuelve el resultado cacheado
@@ -50,29 +56,25 @@ async def procesar(document_id: int, forzar: bool = False, saga: SagaService = D
     return ProcesarResponse(**resultado.model_dump())
 
 
-from fastapi import File, Form, UploadFile
-
-
-@router.post("/procesar-completo")
+@router.post(
+    "/procesar-completo",
+    response_model=ProcesarResponse,
+    responses={409: {"description": "El PDF ya existe"}, 502: {"description": "No se pudo subir"}},
+)
 async def procesar_completo(
     name: str = Form(...),
     file: UploadFile = File(...),
     saga: SagaService = Depends(_get_saga),
-):
-    """Sube un PDF y ejecuta la Saga completa de una sola vez.
-
-    Pensado para el front-end: recibe el archivo, lo sube a documentos-service,
-    y dispara la orquestación. Devuelve el resultado completo de la Saga más el
-    document_id asignado.
-    """
-    contenido = await file.read()
-    await file.close()
-    # Subir el documento primero
+) -> ProcesarResponse:
+    """Sube un PDF y ejecuta la Saga completa de una sola vez (lo usa el front)."""
     try:
-        document_id = await saga.client.subir_documento(name, file.filename, contenido)
+        contenido = await file.read()
+    finally:
+        await file.close()
+    try:
+        document_id, resultado = await saga.subir_y_procesar(name, file.filename, contenido)
     except PasoSagaError as exc:
-        status_code = 409 if "HTTP 409" in exc.detalle else 502
+        # Duplicado -> 409 (lo informa documentos-service); cualquier otro fallo -> 502.
+        status_code = 409 if exc.status_code == 409 else 502
         raise HTTPException(status_code=status_code, detail=exc.detalle) from exc
-    # Ejecutar la Saga sobre ese documento
-    resultado = await saga.procesar(document_id, forzar=True)
-    return {"document_id": document_id, **resultado.model_dump()}
+    return ProcesarResponse(**{**resultado.model_dump(), "document_id": document_id})

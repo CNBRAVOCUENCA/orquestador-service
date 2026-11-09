@@ -15,19 +15,33 @@ documento; si lo hay, se devuelve sin volver a llamar a los microservicios
 resultado en cache.
 """
 
-from typing import Optional
+import contextlib
 
 from App.exceptions import PasoSagaError
 from App.models.resultado_saga import ResultadoSaga
 from App.services.cache import Cache
-from App.services.microservicios_client import MicroserviciosClient
+from App.services.microservicios_client import ServiciosPort
 
 
 class SagaService:
-    def __init__(self, client: MicroserviciosClient, cache: Optional[Cache] = None, max_words: int = 150):
+    """Coordinador de la Saga. Depende de abstracciones (ServiciosPort, Cache)."""
+
+    def __init__(self, client: ServiciosPort, cache: Cache | None = None, max_words: int = 150):
         self.client = client
         self.cache = cache
         self.max_words = max_words
+
+    async def subir_y_procesar(
+        self, nombre: str, filename: str, contenido: bytes
+    ) -> tuple[int, ResultadoSaga]:
+        """Sube el PDF a documentos-service y ejecuta la Saga sobre él.
+
+        Si la subida falla (por ejemplo, PDF duplicado -> 409) se propaga el
+        PasoSagaError: todavía no hay documento, así que no hay nada que compensar.
+        """
+        document_id = await self.client.subir_documento(nombre, filename, contenido)
+        resultado = await self.procesar(document_id, forzar=True)
+        return document_id, resultado
 
     async def procesar(self, document_id: int, forzar: bool = False) -> ResultadoSaga:
         # Cache: si ya se procesó con éxito, devolver sin rehacer el trabajo
@@ -74,7 +88,5 @@ class SagaService:
     async def _compensar(self, document_id: int, exc: PasoSagaError) -> None:
         """Compensación best-effort: marcar el estado como error sin que un
         fallo del propio notificaciones oculte el error original."""
-        try:
+        with contextlib.suppress(PasoSagaError):
             await self.client.notificar(document_id, "error", f"falló en {exc.paso}: {exc.detalle}")
-        except PasoSagaError:
-            pass

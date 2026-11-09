@@ -3,7 +3,6 @@
 from unittest.mock import AsyncMock
 
 import pytest
-
 from App.exceptions import PasoSagaError
 from App.services.saga_service import SagaService
 
@@ -80,8 +79,8 @@ async def test_compensacion_no_explota_si_notificaciones_tambien_falla():
 
 
 async def test_cache_hit_no_llama_a_los_microservicios():
-    from App.services.cache import InMemoryCache
     from App.models.resultado_saga import ResultadoSaga
+    from App.services.cache import InMemoryCache
 
     cache = InMemoryCache()
     # Pre-cargar un resultado exitoso
@@ -116,8 +115,8 @@ async def test_cache_se_guarda_tras_exito():
 
 
 async def test_forzar_ignora_el_cache():
-    from App.services.cache import InMemoryCache
     from App.models.resultado_saga import ResultadoSaga
+    from App.services.cache import InMemoryCache
 
     cache = InMemoryCache()
     await cache.set(ResultadoSaga(
@@ -132,3 +131,26 @@ async def test_forzar_ignora_el_cache():
     # Con forzar=True, reprocesa: se llamó a extraer de verdad
     client.extraer.assert_awaited_once()
     assert resultado.resumen == "este es el resumen"
+
+
+async def test_subir_y_procesar_sube_el_pdf_y_ejecuta_la_saga():
+    client = _client_ok()
+    client.subir_documento.return_value = 7
+    saga = SagaService(client, max_words=100)
+
+    document_id, resultado = await saga.subir_y_procesar("Doc", "a.pdf", b"%PDF-1")
+
+    assert document_id == 7
+    assert resultado.exito is True
+    client.subir_documento.assert_awaited_once_with("Doc", "a.pdf", b"%PDF-1")
+    client.extraer.assert_awaited_once_with(7)
+
+
+async def test_subir_y_procesar_propaga_el_error_de_subida():
+    client = _client_ok()
+    client.subir_documento.side_effect = PasoSagaError("subida", "HTTP 409: dup", status_code=409)
+    saga = SagaService(client, max_words=100)
+
+    with pytest.raises(PasoSagaError):
+        await saga.subir_y_procesar("Doc", "a.pdf", b"%PDF-1")
+    client.extraer.assert_not_awaited()

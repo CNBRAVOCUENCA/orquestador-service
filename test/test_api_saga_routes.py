@@ -18,20 +18,30 @@ def client(monkeypatch):
     monkeypatch.setenv("NOTIFICACIONES_URL", NOT)
     monkeypatch.setenv("CACHE_ENABLED", "false")
     import importlib
+
     import App.config.settings as s
+
     importlib.reload(s)
     import App.api.Routes.saga as r
+
     importlib.reload(r)
     r._get_cache.cache_clear()
     import App.main as m
+
     importlib.reload(m)
     return TestClient(m.app)
 
 
 @respx.mock
 def test_procesar_flujo_completo(client):
-    respx.post(f"{EXT}/api/v1/extract").mock(return_value=httpx.Response(200, json={"extracted_text": "texto del pdf", "char_count": 13}))
-    respx.post(f"{RES}/api/v1/summarize").mock(return_value=httpx.Response(200, json={"summary": "un resumen", "input_char_count": 13, "summary_char_count": 10}))
+    respx.post(f"{EXT}/api/v1/extract").mock(
+        return_value=httpx.Response(200, json={"extracted_text": "texto del pdf", "char_count": 13})
+    )
+    respx.post(f"{RES}/api/v1/summarize").mock(
+        return_value=httpx.Response(
+            200, json={"summary": "un resumen", "input_char_count": 13, "summary_char_count": 10}
+        )
+    )
     respx.post(f"{NOT}/api/v1/estados").mock(return_value=httpx.Response(200, json={}))
 
     r = client.post("/api/v1/procesar/1")
@@ -63,8 +73,12 @@ def test_procesar_completo_sube_y_orquesta(client):
     # Mockear documentos (subida), extraccion, resumen y notificaciones
     respx.post("http://doc.test/api/v1/documents").mock(return_value=httpx.Response(201, json={"id": 7}))
     respx.get("http://doc.test/api/v1/documents/7/file").mock(return_value=httpx.Response(200, content=b"%PDF-fake"))
-    respx.post(f"{EXT}/api/v1/extract").mock(return_value=httpx.Response(200, json={"extracted_text": "texto", "char_count": 5}))
-    respx.post(f"{RES}/api/v1/summarize").mock(return_value=httpx.Response(200, json={"summary": "resumen", "input_char_count": 5, "summary_char_count": 7}))
+    respx.post(f"{EXT}/api/v1/extract").mock(
+        return_value=httpx.Response(200, json={"extracted_text": "texto", "char_count": 5})
+    )
+    respx.post(f"{RES}/api/v1/summarize").mock(
+        return_value=httpx.Response(200, json={"summary": "resumen", "input_char_count": 5, "summary_char_count": 7})
+    )
     respx.post(f"{NOT}/api/v1/estados").mock(return_value=httpx.Response(200, json={}))
 
     r = client.post(
@@ -92,4 +106,4 @@ def test_procesar_completo_rechaza_pdf_duplicado_con_conflicto(client):
     )
 
     assert response.status_code == 409
-    assert response.json() == {"detail": "HTTP 409: {\"detail\":\"Ya existe un documento con el mismo checksum\"}"}
+    assert response.json() == {"detail": 'HTTP 409: {"detail":"Ya existe un documento con el mismo checksum"}'}

@@ -3,14 +3,13 @@
 from pathlib import Path
 
 from fastapi import FastAPI
-
-from App.logging_config import configurar_logging
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from App.api import saga_router
 from App.config.settings import settings
+from App.logging_config import configurar_logging
 
 # Disable API documentation in production (when debug=False)
 docs_url = "/docs" if settings.debug else None
