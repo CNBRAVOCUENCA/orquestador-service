@@ -5,12 +5,21 @@ services:
       dockerfile: Dockerfile.remote
       args:
         SERVICE_REPO: https://github.com/CNBRAVOCUENCA/extraccion-service.git
-        SERVICE_REF: 4a4f318b75d803a3b7c43d0aca231b7e74c13d85
+        SERVICE_REF: 416e561ea437e80ced7adc223312ac26670d237b
+        # PyMuPDF: extracción rápida a Markdown (endpoint síncrono /extract del TP).
+        UV_EXTRAS: --extra fast
       network: host
     environment:
       DOCUMENTOS_SERVICE_URL: http://documentos:8000
+      EXTRACTOR_BACKEND: pymupdf
+      EXTRACT_WORKERS: "1"
+      MAX_INFLIGHT: "16"
+      CACHE_ENABLED: "true"
+      REDIS_URL: redis://redis:6379
     depends_on:
       documentos:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
@@ -22,5 +31,8 @@ services:
       - traefik.http.routers.extraccion.rule=Host(`extraccion.localhost`)
       - traefik.http.routers.extraccion-public.rule=PathPrefix(`/api/v1/extract`)
       - traefik.http.routers.extraccion-public.priority=100
+      # Endpoint síncrono del TP de carga: POST /extract con el PDF binario.
+      - traefik.http.routers.extraccion-sync.rule=Path(`/extract`)
+      - traefik.http.routers.extraccion-sync.priority=100
       - traefik.http.services.extraccion.loadbalancer.server.port=8000
     networks: [web]

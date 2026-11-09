@@ -5,7 +5,7 @@ services:
       dockerfile: Dockerfile.remote
       args:
         SERVICE_REPO: https://github.com/CNBRAVOCUENCA/documentos-service.git
-        SERVICE_REF: 05b245e6941d5309ff83c333b7f966664a7ec38e
+        SERVICE_REF: 55dcdf696e36d923410c89108d269e9254cad4bb
       network: host
     environment:
       DATABASE_URL: mongodb://mongo:27017

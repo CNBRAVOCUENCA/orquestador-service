@@ -20,15 +20,18 @@ COPY --from=ghcr.io/astral-sh/uv:0.11.32 /uv /usr/local/bin/uv
 ENV UV_LINK_MODE=copy \
     UV_PROJECT_ENVIRONMENT=/opt/venv
 
+# Extras opcionales del servicio (p. ej. "--extra fast" en extraccion).
+ARG UV_EXTRAS=""
+
 COPY --from=source /tmp/service/pyproject.toml /tmp/service/uv.lock /tmp/service/README.md ./
 
 # Instala dependencias antes de copiar el codigo para reutilizar esta capa.
-RUN uv sync --locked --no-dev --no-install-project
+RUN uv sync --locked --no-dev --no-install-project $UV_EXTRAS
 
 COPY --from=source /tmp/service/App ./App
 
 # Instala exactamente lo que fija el uv.lock del servicio (falla si esta desactualizado)
-RUN uv sync --locked --no-dev
+RUN uv sync --locked --no-dev $UV_EXTRAS
 
 FROM python:3.12-slim@sha256:78387bc3881b8273120a12ebe6c1ab22b018ccc2c9adf565ae1ac9b536e184ea AS runtime
 
@@ -40,6 +43,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 COPY --from=builder /opt/venv /opt/venv
 COPY --from=builder /app/App ./App
+
+# Igual que el orquestador: la app no corre como root.
+RUN useradd --system --uid 10001 --no-create-home appuser
+USER appuser
 
 EXPOSE 8000
 
