@@ -1,4 +1,4 @@
-FROM python:3.12-alpine AS builder
+FROM python:3.15-alpine AS builder
 
 RUN apk upgrade --no-cache
 
@@ -18,7 +18,7 @@ RUN uv sync --locked --no-dev --no-install-project
 COPY App ./App
 RUN uv sync --locked --no-dev
 
-FROM python:3.12-alpine AS runtime
+FROM python:3.15-alpine AS runtime
 
 RUN apk upgrade --no-cache
 
