@@ -1,11 +1,12 @@
 services:
   notificaciones:
+    image: "${IMAGE_NAMESPACE:-pdf-ms}/notificaciones:${NOTIFICACIONES_VERSION:?Set NOTIFICACIONES_VERSION in .env}"
     build:
       context: ../..
       dockerfile: Dockerfile.remote
       args:
         SERVICE_REPO: https://github.com/CNBRAVOCUENCA/notificaciones-service.git
-        SERVICE_REF: b2e4eadacccccb5568ef1e8133b1a03fb7a73cec
+        SERVICE_REF: "${NOTIFICACIONES_VERSION:?Set NOTIFICACIONES_VERSION in .env}"
       network: host
     environment:
       DATABASE_URL: mongodb://mongo:27017

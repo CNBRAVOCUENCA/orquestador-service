@@ -1,11 +1,12 @@
 services:
   resumen:
+    image: "${IMAGE_NAMESPACE:-pdf-ms}/resumen:${RESUMEN_VERSION:?Set RESUMEN_VERSION in .env}"
     build:
       context: ../..
       dockerfile: Dockerfile.remote
       args:
         SERVICE_REPO: https://github.com/CNBRAVOCUENCA/resumen-service.git
-        SERVICE_REF: c0fb3e5ee4d0576b5bde1e47b5f9a8255a871fcd
+        SERVICE_REF: "${RESUMEN_VERSION:?Set RESUMEN_VERSION in .env}"
       network: host
     environment:
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}

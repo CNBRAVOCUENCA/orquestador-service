@@ -1,11 +1,12 @@
 services:
   extraccion:
+    image: "${IMAGE_NAMESPACE:-pdf-ms}/extraccion:${EXTRACCION_VERSION:?Set EXTRACCION_VERSION in .env}"
     build:
       context: ../..
       dockerfile: Dockerfile.remote
       args:
         SERVICE_REPO: https://github.com/CNBRAVOCUENCA/extraccion-service.git
-        SERVICE_REF: a57c25dad69dbefe95107c093f6cb9b59bdbe4cb
+        SERVICE_REF: "${EXTRACCION_VERSION:?Set EXTRACCION_VERSION in .env}"
         # PyMuPDF: extracción rápida a Markdown (endpoint síncrono /extract del TP).
         UV_EXTRAS: --extra fast
       network: host
