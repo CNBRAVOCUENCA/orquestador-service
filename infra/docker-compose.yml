@@ -2,6 +2,7 @@
 # Requiere Docker Compose v2.20 o posterior para la directiva include.
 
 include:
+  - services/consul/compose.yaml
   - services/traefik/compose.yaml
   - services/cloudflared/compose.yaml
   - services/redis/compose.yaml
@@ -14,6 +15,7 @@ include:
 
 volumes:
   mongo_data:
+  consul_data:
 
 networks:
   web:

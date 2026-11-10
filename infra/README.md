@@ -7,7 +7,8 @@ Redis para cache.
 
 | Servicio | Rol | URL (vía Traefik) |
 |---|---|---|
-| Traefik | Gateway / reverse proxy | dashboard en `http://localhost:8080` |
+| Traefik | Gateway / reverse proxy (Consul Catalog) | dashboard en `http://localhost:8080` |
+| Consul | Catálogo de servicios y health checks | (interno, `consul:8500`) |
 | documentos | Dueño del documento | `http://documentos.localhost` |
 | extraccion | PDF → texto | `http://extraccion.localhost` |
 | resumen | Texto → resumen IA | `http://resumen.localhost` |
@@ -30,6 +31,20 @@ Compose principal. `App/services/` es codigo Python del orquestador y no contien
 archivos de despliegue.
 
 Se requiere Docker Compose v2.20 o posterior por la directiva `include`.
+Consul descubre cada réplica por su dirección de contenedor y Traefik consulta
+el catálogo cada 5 segundos. La migración mantiene temporalmente activos el
+provider Docker y sus rutas y prueba ConsulCatalog en paralelo; las rutas nuevas
+usan sufijo `-consul` para evitar colisiones. No desactives Docker ni retires
+sus etiquetas hasta verificar end-to-end las rutas Consul, los checks de salud
+y la recuperación. Ambos providers preservan las rutas `Host`, `PathPrefix` y
+prioridades existentes; ConsulCatalog solo enruta instancias con check
+`passing`.
+
+`CONSUL_HTTP_TOKEN` es opcional. Proporciónalo mediante un gestor de secretos
+externo o un archivo `.env` local excluido de Git; no lo guardes en el
+repositorio. El token no se incluye en logs. Si Consul está configurado en la
+app, el arranque falla si no puede registrar el servicio; al apagarla se
+desregistra del agente.
 
 Los cuerpos de solicitud de ejemplo están en `infra/examples/`; resultados de
 Vegeta y sus configuraciones están en `infra/vegeta/`.
@@ -101,6 +116,46 @@ curl -X POST http://orquestador.localhost/api/v1/procesar/1
 # 3. Ver el estado registrado
 curl http://notificaciones.localhost/api/v1/estados/1
 ```
+
+### Verificación reproducible de descubrimiento y recuperación
+
+Desde la raíz del repositorio, crea un `.env` local (no versionado) con la
+configuración de la sección `.env.example`. Para validar la interpolación de
+Compose sin usar un secreto real:
+
+```powershell
+$env:CONSUL_HTTP_TOKEN = "compose-validation-only"
+docker compose -f infra\docker-compose.yml config --quiet
+Remove-Item Env:\CONSUL_HTTP_TOKEN
+```
+
+Inicia el stack y espera servicios saludables:
+
+```powershell
+docker compose -f infra\docker-compose.yml up -d --build --wait --wait-timeout 300
+```
+
+Confirma que los servicios estén en el catálogo, sus checks pasen y que los
+routers y servicios `-consul@consulcatalog` aparezcan en la API de Traefik:
+
+```powershell
+docker compose -f infra\docker-compose.yml exec consul consul catalog services
+docker compose -f infra\docker-compose.yml exec consul consul health checks
+curl.exe http://localhost:8080/api/http/routers/documentos-consul@consulcatalog
+curl.exe http://localhost:8080/api/http/services/documentos-consul@consulcatalog
+curl.exe -H "Host: documentos.localhost" http://localhost/api/v1/documents
+curl.exe -H "Host: orquestador.localhost" http://localhost/health
+```
+
+Como Docker y ConsulCatalog están activos simultáneamente, un smoke test de URL
+puede ser atendido por cualquiera de los providers. Verifica específicamente el
+`*-consul@consulcatalog` en la API de Traefik y su lista de servidores para
+probar la ruta Consul. Para verificar recuperación, detén una instancia,
+confirma que su check pasa a crítico y que su IP desaparece de los servidores
+Consul de Traefik; vuelve a iniciarla y confirma que el check vuelve a `passing`
+y la IP reaparece. Esto verifica ConsulCatalog sin desactivar las rutas Docker.
+Al terminar, limpia el stack con
+`docker compose -f infra\docker-compose.yml down`.
 
 ## Load testing
 

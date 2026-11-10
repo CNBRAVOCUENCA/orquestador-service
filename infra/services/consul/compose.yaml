@@ -1,0 +1,18 @@
+services:
+  consul:
+    image: hashicorp/consul:1.21.5
+    command:
+      - agent
+      - -server
+      - -bootstrap-expect=1
+      - -client=0.0.0.0
+      - -data-dir=/consul/data
+    volumes:
+      - consul_data:/consul/data
+    healthcheck:
+      test: ["CMD", "consul", "members"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+    networks: [web]

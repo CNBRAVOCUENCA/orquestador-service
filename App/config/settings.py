@@ -25,5 +25,12 @@ class Settings(BaseSettings):
     http_timeout_seconds: float = 120.0
     api_v1_prefix: str = "/api/v1"
 
+    consul_http_addr: str = ""
+    consul_http_token: str = ""
+    consul_service_name: str | None = None
+    consul_service_port: int = 8000
+    consul_service_tags: str = ""
+    consul_service_address: str | None = None
+
 
 settings = Settings()
