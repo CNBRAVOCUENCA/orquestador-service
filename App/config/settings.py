@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     cache_ttl_seconds: int = 3600
     cache_enabled: bool = True
     http_timeout_seconds: float = 120.0
+    readiness_timeout_seconds: float = 5.0
     api_v1_prefix: str = "/api/v1"
 
 

@@ -27,8 +27,9 @@ propia base de datos, no existe una transacción única que los abarque a todos.
 
 Antes de procesar, consulta Redis: si el documento ya se procesó con éxito, devuelve
 el resultado cacheado sin volver a llamar a extracción + resumen (ahorra la llamada
-cara a la IA). Se puede saltear el cache con `?forzar=true`. Si Redis no está
-disponible, el servicio degrada a un cache en memoria automáticamente.
+cara a la IA). Se puede saltear el cache con `?forzar=true`. Si `CACHE_ENABLED=true`,
+Redis es una dependencia requerida para readiness. Para operar sin Redis, configura
+`CACHE_ENABLED=false`; el orquestador usará un cache en memoria.
 
 ## Arquitectura (capas)
 
@@ -48,9 +49,20 @@ test/                              # 14 tests (saga, compensación, cache, clien
 | Método | Ruta | Descripción |
 |---|---|---|
 | POST | `/api/v1/procesar/{document_id}` | Ejecuta la Saga. `?forzar=true` ignora el cache |
-| GET | `/health` | Health check |
+| GET | `/health` | Liveness: confirma que el proceso está activo; no comprueba dependencias |
+| GET | `/ready` | Readiness: verifica dependencias y devuelve 503 si alguna requerida falla |
 
 La respuesta siempre es 200 con el resultado: `{document_id, exito, estado_final, pasos_completados, resumen, error}`. Si la Saga falló, `exito=false` y `error` dice en qué paso.
+
+El proxy y el healthcheck de Docker Compose deben usar `/ready` antes de enviar
+trabajo. Una respuesta 200 con `status: "ok"` significa que Documentos,
+Extracción, Resumen y Notificaciones respondieron correctamente; si el caché
+está habilitado, también debe responder Redis. Una respuesta 503 con
+`status: "error"` incluye en `dependencies` qué servicio falló y si fue un
+timeout, un error de conexión o una respuesta HTTP no exitosa. Con
+`CACHE_ENABLED=false`, Redis figura como `disabled` y no afecta la readiness.
+`/health` permanece como liveness y seguirá respondiendo 200 mientras el
+proceso pueda atender HTTP, aunque haya dependencias caídas.
 
 ## Ejecución con Docker
 
