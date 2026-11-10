@@ -11,12 +11,20 @@ services:
       network: host
     environment:
       DOCUMENTOS_SERVICE_URL: http://documentos:8000
+      DOCUMENTOS_SERVICE_API_KEY: ${INTERNAL_SERVICE_API_KEY:?Configura INTERNAL_SERVICE_API_KEY en .env}
       EXTRACTOR_BACKEND: pymupdf
       EXTRACT_WORKERS: "1"
       MAX_INFLIGHT: "16"
       CACHE_ENABLED: "true"
       REDIS_URL: redis://redis:6379
+      CONSUL_HTTP_ADDR: http://consul:8500
+      CONSUL_HTTP_TOKEN: ${CONSUL_HTTP_TOKEN:-}
+      CONSUL_SERVICE_NAME: extraccion
+      CONSUL_SERVICE_PORT: "8000"
+      CONSUL_SERVICE_TAGS: "traefik.enable=true,traefik.http.routers.extraccion-consul.rule=Host(`extraccion.localhost`),traefik.http.routers.extraccion-public-consul.rule=PathPrefix(`/api/v1/extract`),traefik.http.routers.extraccion-public-consul.priority=100,traefik.http.routers.extraccion-sync-consul.rule=Path(`/extract`),traefik.http.routers.extraccion-sync-consul.priority=100,traefik.http.services.extraccion-consul.loadbalancer.server.port=8000"
     depends_on:
+      consul:
+        condition: service_healthy
       documentos:
         condition: service_healthy
       redis:

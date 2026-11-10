@@ -11,7 +11,14 @@ services:
       NOTIFICACIONES_URL: http://notificaciones:8000
       REDIS_URL: redis://redis:6379
       CACHE_ENABLED: "true"
+      CONSUL_HTTP_ADDR: http://consul:8500
+      CONSUL_HTTP_TOKEN: ${CONSUL_HTTP_TOKEN:-}
+      CONSUL_SERVICE_NAME: orquestador
+      CONSUL_SERVICE_PORT: "8000"
+      CONSUL_SERVICE_TAGS: "traefik.enable=true,traefik.http.routers.orquestador-consul.rule=Host(`${ORQUESTADOR_HOST:-orquestador.localhost}`),traefik.http.routers.orquestador-public-consul.rule=PathPrefix(`/api/v1/procesar`),traefik.http.routers.orquestador-public-consul.priority=100,traefik.http.services.orquestador-consul.loadbalancer.server.port=8000"
     depends_on:
+      consul:
+        condition: service_healthy
       documentos:
         condition: service_healthy
       extraccion:

@@ -9,6 +9,7 @@ from typing import Any, Protocol
 import httpx
 
 from App.exceptions import PasoSagaError
+from App.telemetry import request_headers_for_outgoing
 
 
 class ServiciosPort(Protocol):
@@ -46,9 +47,10 @@ class MicroserviciosClient:
 
     async def _post(self, url: str, paso: str, **kwargs: Any) -> dict:
         """POST común: traduce fallos de red y respuestas >= 400 a PasoSagaError."""
+        headers = request_headers_for_outgoing()
         async with httpx.AsyncClient(timeout=self.timeout) as client:
             try:
-                resp = await client.post(url, **kwargs)
+                resp = await client.post(url, headers=headers, **kwargs)
             except httpx.HTTPError as exc:
                 raise PasoSagaError(paso, f"no se pudo contactar el servicio: {exc}") from exc
         if resp.status_code >= 400:
@@ -68,7 +70,7 @@ class MicroserviciosClient:
         return data["id"]
 
     async def extraer(self, document_id: int) -> str:
-        """Llama a extraccion-service. Devuelve el texto extraído."""
+        """Devuelve texto solo si Extracción confirmó su persistencia en Documentos."""
         data = await self._post(
             f"{self.extraccion_url}/api/v1/extract",
             paso="extraccion",
@@ -92,3 +94,4 @@ class MicroserviciosClient:
             paso="notificacion",
             json={"document_id": document_id, "estado": estado, "detalle": detalle},
         )
+

@@ -1,6 +1,8 @@
 """Entrypoint del orquestador."""
 
+from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import AsyncIterator
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,6 +12,8 @@ from fastapi.staticfiles import StaticFiles
 from App.api import saga_router
 from App.config.settings import settings
 from App.logging_config import configurar_logging
+from App.services.consul_registration import ConsulRegistration
+from App.telemetry import install_telemetry
 
 # Disable API documentation in production (when debug=False)
 docs_url = "/docs" if settings.debug else None
@@ -18,6 +22,17 @@ openapi_url = "/openapi.json" if settings.debug else None
 
 configurar_logging()
 
+
+@asynccontextmanager
+async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    registration = ConsulRegistration(settings)
+    await registration.register()
+    try:
+        yield
+    finally:
+        await registration.deregister()
+
+
 app = FastAPI(
     title=settings.app_name,
     version=settings.app_version,
@@ -25,7 +40,10 @@ app = FastAPI(
     docs_url=docs_url,
     redoc_url=redoc_url,
     openapi_url=openapi_url,
+    lifespan=lifespan,
 )
+
+install_telemetry(app, settings.app_name)
 
 # CORS: permite que el front (página web) llame a este servicio desde el navegador
 app.add_middleware(
