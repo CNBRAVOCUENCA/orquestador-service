@@ -11,6 +11,7 @@ from fastapi.staticfiles import StaticFiles
 
 from App.api import saga_router
 from App.config.settings import settings
+from App.telemetry import install_telemetry
 
 # Disable API documentation in production (when debug=False)
 docs_url = "/docs" if settings.debug else None
@@ -27,6 +28,8 @@ app = FastAPI(
     redoc_url=redoc_url,
     openapi_url=openapi_url,
 )
+
+install_telemetry(app, settings.app_name)
 
 # CORS: permite que el front (página web) llame a este servicio desde el navegador
 app.add_middleware(

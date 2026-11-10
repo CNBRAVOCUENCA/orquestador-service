@@ -54,6 +54,23 @@ def test_procesar_con_fallo_devuelve_error(client):
     assert body["estado_final"] == "error"
 
 
+@respx.mock
+def test_observabilidad_expone_metricas_y_trace_id(client):
+    respx.post(f"{EXT}/api/v1/extract").mock(return_value=httpx.Response(200, json={"extracted_text": "texto del pdf", "char_count": 13}))
+    respx.post(f"{RES}/api/v1/summarize").mock(return_value=httpx.Response(200, json={"summary": "un resumen", "input_char_count": 13, "summary_char_count": 10}))
+    respx.post(f"{NOT}/api/v1/estados").mock(return_value=httpx.Response(200, json={}))
+
+    response = client.post("/api/v1/procesar/1")
+    assert response.status_code == 200
+    assert response.headers.get("x-trace-id")
+
+    metrics = client.get("/metrics")
+    assert metrics.status_code == 200
+    body = metrics.text
+    assert "http_requests_total" in body
+    assert 'service="orquestador-service"' in body
+
+
 def test_health(client):
     assert client.get("/health").status_code == 200
 

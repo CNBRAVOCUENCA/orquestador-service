@@ -7,6 +7,7 @@ donde se agregarían Retry y Circuit Breaker.
 import httpx
 
 from App.exceptions import PasoSagaError
+from App.telemetry import request_headers_for_outgoing
 
 
 class MicroserviciosClient:
@@ -18,9 +19,10 @@ class MicroserviciosClient:
         self.timeout = timeout
 
     async def _post(self, url: str, json: dict, paso: str) -> dict:
+        headers = request_headers_for_outgoing()
         async with httpx.AsyncClient(timeout=self.timeout) as client:
             try:
-                resp = await client.post(url, json=json)
+                resp = await client.post(url, json=json, headers=headers)
             except httpx.HTTPError as exc:
                 raise PasoSagaError(paso, f"no se pudo contactar el servicio: {exc}") from exc
         if resp.status_code >= 400:
@@ -30,11 +32,12 @@ class MicroserviciosClient:
     async def subir_documento(self, nombre: str, filename: str, contenido: bytes) -> int:
         """Sube un PDF a documentos-service y devuelve el document_id."""
         url = f"{self.documentos_url}/api/v1/documents"
+        headers = request_headers_for_outgoing()
         async with httpx.AsyncClient(timeout=self.timeout) as client:
             try:
                 files = {"file": (filename, contenido, "application/pdf")}
                 data = {"name": nombre}
-                resp = await client.post(url, data=data, files=files)
+                resp = await client.post(url, data=data, files=files, headers=headers)
             except httpx.HTTPError as exc:
                 raise PasoSagaError("subida", f"no se pudo subir el documento: {exc}") from exc
         if resp.status_code >= 400:
