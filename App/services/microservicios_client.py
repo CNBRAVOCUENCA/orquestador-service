@@ -1,8 +1,10 @@
-"""Cliente HTTP que agrupa las llamadas a los 3 microservicios coordinados.
+"""Cliente HTTP que agrupa las llamadas a los microservicios coordinados.
 
 Toda la comunicación saliente del orquestador pasa por acá — es el punto
 donde se agregarían Retry y Circuit Breaker.
 """
+
+import asyncio
 
 import httpx
 
@@ -16,6 +18,35 @@ class MicroserviciosClient:
         self.resumen_url = resumen_url.rstrip("/")
         self.notificaciones_url = notificaciones_url.rstrip("/")
         self.timeout = timeout
+
+    async def verificar_salud(self) -> dict[str, dict[str, str]]:
+        """Consulta en paralelo el endpoint de salud de cada microservicio."""
+        servicios = {
+            "documentos": self.documentos_url,
+            "extraccion": self.extraccion_url,
+            "resumen": self.resumen_url,
+            "notificaciones": self.notificaciones_url,
+        }
+
+        async def verificar(
+            client: httpx.AsyncClient, nombre: str, url: str
+        ) -> tuple[str, dict[str, str]]:
+            try:
+                response = await client.get(f"{url}/health")
+            except httpx.TimeoutException:
+                return nombre, {"status": "error", "detail": "timeout"}
+            except httpx.RequestError:
+                return nombre, {"status": "error", "detail": "connection_error"}
+
+            if not response.is_success:
+                return nombre, {"status": "error", "detail": f"http_{response.status_code}"}
+            return nombre, {"status": "ok"}
+
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            resultados = await asyncio.gather(
+                *(verificar(client, nombre, url) for nombre, url in servicios.items())
+            )
+        return dict(resultados)
 
     async def _post(self, url: str, json: dict, paso: str) -> dict:
         async with httpx.AsyncClient(timeout=self.timeout) as client:

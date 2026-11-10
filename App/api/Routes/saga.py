@@ -17,11 +17,7 @@ def _get_cache() -> Cache:
     """Devuelve el cache real (Redis) o uno en memoria si está deshabilitado."""
     if not settings.cache_enabled:
         return InMemoryCache()
-    try:
-        return RedisCache(settings.redis_url, settings.cache_ttl_seconds)
-    except Exception:
-        # Si Redis no está disponible al arrancar, degradar a cache en memoria
-        return InMemoryCache()
+    return RedisCache(settings.redis_url, settings.cache_ttl_seconds)
 
 
 router = APIRouter(tags=["orquestador"])
