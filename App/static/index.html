@@ -190,6 +190,17 @@
         });
         const data = await resp.json();
 
+        // Si el orquestador rechazó el pedido (por ejemplo, PDF repetido -> 409),
+        // mostrar el motivo en vez de "error desconocido".
+        if (!resp.ok) {
+          estadoPaso("subido", "error");
+          const motivo = resp.status === 409
+            ? "Este PDF ya fue subido antes (documento duplicado). Elegí otro archivo."
+            : "El orquestador respondió " + resp.status + ": " + (data.detail || "error desconocido");
+          mostrarError(motivo);
+          return;
+        }
+
         // Iluminar los pasos según pasos_completados
         const completados = data.pasos_completados || [];
         const orden = ["subido","extraido","resumido","notificado"];
