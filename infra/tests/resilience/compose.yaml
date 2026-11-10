@@ -1,0 +1,44 @@
+services:
+  traefik:
+    image: traefik@sha256:31267173a15b4944e797a76ffd9c419707c8d8b32fe5b610f80cd0cfa05f372d
+    command:
+      - --entrypoints.web.address=:80
+      - --entrypoints.web-internal.address=:8081
+      - --entrypoints.ping.address=:8082
+      - --ping=true
+      - --ping.entrypoint=ping
+      - --providers.file.directory=/etc/traefik/dynamic
+      - --providers.file.watch=true
+      - --log.level=DEBUG
+    volumes:
+      - ../../services/traefik/dynamic/resilience.yml:/etc/traefik/dynamic/resilience.yml:ro
+      - ./probe.yml:/etc/traefik/dynamic/probe.yml:ro
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks: [resilience]
+
+  backend:
+    build:
+      context: .
+    command: ["python", "/app/backend.py"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 1s
+      timeout: 3s
+      retries: 20
+    networks: [resilience]
+
+  test:
+    build:
+      context: .
+    command: ["python", "/app/verify_resilience.py"]
+    depends_on:
+      traefik:
+        condition: service_started
+      backend:
+        condition: service_healthy
+    networks: [resilience]
+
+networks:
+  resilience:

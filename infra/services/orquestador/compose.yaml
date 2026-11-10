@@ -5,13 +5,15 @@ services:
       dockerfile: Dockerfile
       network: host
     environment:
-      DOCUMENTOS_URL: http://documentos:8000
-      EXTRACCION_URL: http://extraccion:8000
-      RESUMEN_URL: http://resumen:8000
-      NOTIFICACIONES_URL: http://notificaciones:8000
+      DOCUMENTOS_URL: http://traefik:8081
+      EXTRACCION_URL: http://traefik:8081
+      RESUMEN_URL: http://traefik:8081
+      NOTIFICACIONES_URL: http://traefik:8081
       REDIS_URL: redis://redis:6379
       CACHE_ENABLED: "true"
     depends_on:
+      traefik:
+        condition: service_healthy
       documentos:
         condition: service_healthy
       extraccion:
@@ -32,5 +34,6 @@ services:
       - "traefik.http.routers.orquestador.rule=Host(`${ORQUESTADOR_HOST:-orquestador.localhost}`)"
       - traefik.http.routers.orquestador-public.rule=PathPrefix(`/api/v1/procesar`)
       - traefik.http.routers.orquestador-public.priority=100
+      - traefik.http.routers.orquestador-public.middlewares=api-ratelimit@file,api-circuitbreaker@file
       - traefik.http.services.orquestador.loadbalancer.server.port=8000
     networks: [web]
