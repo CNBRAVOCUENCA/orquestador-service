@@ -1,7 +1,16 @@
 # Infraestructura — El-Destripador-de-PDFs
 
 Levanta el **sistema completo** de microservicios, orquestado con Traefik y con
-Redis para cache.
+Redis para cache. ConsulCatalog está habilitado en paralelo con Docker, pero
+la integración aún no está lista para un end-to-end rollout: los servicios
+remotos fijados por `SERVICE_REF` todavía apuntan a commits sin el registro
+Consul requerido y, por tanto, no aparecerán en Consul en esas imágenes.
+
+**Bloqueo de despliegue:** no consideres activa la resolución dinámica para los
+servicios remotos ni desactives Docker hasta que cada servicio publique o integre
+su implementación de registro, se actualice aquí el `SERVICE_REF` a ese commit
+publicado y se verifiquen en ejecución las rutas, checks de salud y recuperación
+de ConsulCatalog. No cambies los pins por commits locales o inexistentes.
 
 ## Qué levanta
 
@@ -31,14 +40,14 @@ Compose principal. `App/services/` es codigo Python del orquestador y no contien
 archivos de despliegue.
 
 Se requiere Docker Compose v2.20 o posterior por la directiva `include`.
-Consul descubre cada réplica por su dirección de contenedor y Traefik consulta
-el catálogo cada 5 segundos. La migración mantiene temporalmente activos el
-provider Docker y sus rutas y prueba ConsulCatalog en paralelo; las rutas nuevas
-usan sufijo `-consul` para evitar colisiones. No desactives Docker ni retires
-sus etiquetas hasta verificar end-to-end las rutas Consul, los checks de salud
-y la recuperación. Ambos providers preservan las rutas `Host`, `PathPrefix` y
-prioridades existentes; ConsulCatalog solo enruta instancias con check
-`passing`.
+Cuando las imágenes implementen el registro y sus `SERVICE_REF` apunten a esos
+commits, Consul descubrirá cada réplica por su dirección de contenedor y
+Traefik consultará el catálogo cada 5 segundos. Hasta entonces, la migración es
+solo configuración preparada: Docker provider y sus rutas continúan siendo la
+ruta operativa. ConsulCatalog está configurado en paralelo y sus rutas usan
+sufijo `-consul` para evitar colisiones. Ambos providers preservan las rutas
+`Host`, `PathPrefix` y prioridades; ConsulCatalog solo enruta instancias con
+check `passing`.
 
 `CONSUL_HTTP_TOKEN` es opcional. Proporciónalo mediante un gestor de secretos
 externo o un archivo `.env` local excluido de Git; no lo guardes en el
@@ -135,7 +144,8 @@ Inicia el stack y espera servicios saludables:
 docker compose -f infra\docker-compose.yml up -d --build --wait --wait-timeout 300
 ```
 
-Confirma que los servicios estén en el catálogo, sus checks pasen y que los
+Después de publicar/actualizar todos los `SERVICE_REF` como se describe arriba,
+confirma que los servicios estén en el catálogo, sus checks pasen y que los
 routers y servicios `-consul@consulcatalog` aparezcan en la API de Traefik:
 
 ```powershell
