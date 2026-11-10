@@ -13,6 +13,7 @@ from App.api import saga_router
 from App.config.settings import settings
 from App.logging_config import configurar_logging
 from App.services.consul_registration import ConsulRegistration
+from App.telemetry import install_telemetry
 
 # Disable API documentation in production (when debug=False)
 docs_url = "/docs" if settings.debug else None
@@ -41,6 +42,8 @@ app = FastAPI(
     openapi_url=openapi_url,
     lifespan=lifespan,
 )
+
+install_telemetry(app, settings.app_name)
 
 # CORS: permite que el front (página web) llame a este servicio desde el navegador
 app.add_middleware(

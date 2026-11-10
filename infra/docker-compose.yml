@@ -12,6 +12,7 @@ include:
   - services/resumen/compose.yaml
   - services/notificaciones/compose.yaml
   - services/orquestador/compose.yaml
+  - services/observabilidad/compose.yaml
 
 volumes:
   mongo_data:

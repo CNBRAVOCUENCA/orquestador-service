@@ -160,3 +160,50 @@ con `apk` o renueva la imagen base.
 Si es de Python, se actualiza igual que con pip-audit.
 Si Fixed Version está vacío, todavía no hay parche: se registra en un issue y se revisa en la corrida semanal.
 Exit code 0 = sin hallazgos que bloqueen. Exit code 1 = hay que corregir antes de mergear.
+
+## Observabilidad del flujo completo
+
+El stack incluye Prometheus + Grafana para recoger métricas HTTP de baja cardinalidad y seguir una traza de correlación por petición distribuida.
+
+### Qué se mide
+
+- `http_requests_total`: tráfico por servicio, método, ruta y estado HTTP.
+- `http_request_duration_seconds`: latencia de respuesta por servicio.
+- `x-trace-id` y `traceparent`: propagados desde el orquestador hacia los microservicios participantes.
+- Los logs incluyen `trace_id` en stdout para correlacionar eventos del mismo flujo.
+
+No se registran documentos, textos completos, prompts ni API keys. Las métricas usan solo etiquetas de baja cardinalidad: servicio, método, ruta y estado.
+
+### Levantar el stack de observabilidad
+
+```bash
+docker compose -f orquestador-service/infra/docker-compose.yml up -d --wait
+```
+
+Luego puede abrirse:
+
+- Prometheus: `http://localhost:9090`
+- Grafana: `http://localhost:3000` (usuario `admin`, clave `admin`)
+
+La vista predefinida `Microservicios - Flujo y errores` ya queda conectada a Prometheus.
+
+### Consultas útiles
+
+```bash
+# tráfico por servicio
+curl 'http://localhost:9090/api/v1/query?query=sum%20by%20(service)%20(rate(http_requests_total%5B5m%5D))'
+
+# errores 5xx
+curl 'http://localhost:9090/api/v1/query?query=sum%20by%20(service)%20(rate(http_requests_total%7Bstatus=~"5.."%7D%5B5m%5D))'
+
+# p95 de latencia
+curl 'http://localhost:9090/api/v1/query?query=histogram_quantile(0.95,%20sum%20by%20(le,service)%20(rate(http_request_duration_seconds_bucket%5B5m%5D)))'
+```
+
+### Apagar
+
+```bash
+docker compose -f orquestador-service/infra/docker-compose.yml down
+```
+
+Si el backend de observabilidad cae, el flujo de negocio no se interrumpe: la aplicación sigue respondiendo y las métricas siguen siendo recolectadas en el siguiente scrape.
