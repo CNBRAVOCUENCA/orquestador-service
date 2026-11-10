@@ -12,7 +12,8 @@ POST /procesar/{document_id}
    ├─(cache hit? → devuelve resultado guardado)
    │
    ├─ notificar "subido"
-   ├─ extraccion-service   → texto     → notificar "extraido"
+   ├─ extraccion-service   → extrae y persiste el texto en documentos-service
+   │                         → notificar "extraido" solo tras confirmar
    ├─ resumen-service      → resumen   → notificar "resumido"
    ├─ notificar "notificado"  ✓ éxito → guardar en cache (Redis)
    │
@@ -22,6 +23,9 @@ POST /procesar/{document_id}
 Es una **Saga orquestada**: un coordinador central (este servicio) dirige los pasos
 y decide la compensación si algo sale mal — porque al estar cada microservicio en su
 propia base de datos, no existe una transacción única que los abarque a todos.
+Extracción devuelve éxito únicamente después de que Documentos confirme la
+persistencia de `extracted_text` y `is_processed=true`. Si falla esa escritura,
+la Saga no continúa al resumen ni informa éxito; ejecuta la compensación habitual.
 
 ## Cache con Redis
 
@@ -56,6 +60,8 @@ La respuesta siempre es 200 con el resultado: `{document_id, exito, estado_final
 
 1. Instala Docker Desktop y Docker Compose v2.20 o posterior (se usa `include`).
 2. Copia `.env.example` como `.env` y completa `GEMINI_API_KEY`.
+   Configura también `INTERNAL_SERVICE_API_KEY` con un secreto aleatorio largo;
+   se comparte únicamente entre `documentos-service` y `extraccion-service`.
 3. Ejecuta el script multiplataforma:
 
 ```bash

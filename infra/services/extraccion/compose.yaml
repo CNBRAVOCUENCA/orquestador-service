@@ -11,6 +11,7 @@ services:
       network: host
     environment:
       DOCUMENTOS_SERVICE_URL: http://documentos:8000
+      DOCUMENTOS_SERVICE_API_KEY: ${INTERNAL_SERVICE_API_KEY:?Configura INTERNAL_SERVICE_API_KEY en .env}
       EXTRACTOR_BACKEND: pymupdf
       EXTRACT_WORKERS: "1"
       MAX_INFLIGHT: "16"

@@ -10,6 +10,7 @@ services:
     environment:
       DATABASE_URL: mongodb://mongo:27017
       DATABASE_NAME: documentos_service
+      EXTRACTION_SERVICE_API_KEY: ${INTERNAL_SERVICE_API_KEY:?Configura INTERNAL_SERVICE_API_KEY en .env}
     depends_on:
       mongo:
         condition: service_healthy

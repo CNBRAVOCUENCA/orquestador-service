@@ -68,7 +68,7 @@ class MicroserviciosClient:
         return data["id"]
 
     async def extraer(self, document_id: int) -> str:
-        """Llama a extraccion-service. Devuelve el texto extraído."""
+        """Devuelve texto solo si Extracción confirmó su persistencia en Documentos."""
         data = await self._post(
             f"{self.extraccion_url}/api/v1/extract",
             paso="extraccion",

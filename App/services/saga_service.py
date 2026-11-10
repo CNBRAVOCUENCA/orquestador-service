@@ -63,6 +63,7 @@ class SagaService:
             await self.client.notificar(document_id, "subido", "inicio del procesamiento")
             pasos_completados.append("subido")
 
+            # Un 200 de Extracción confirma que Documentos ya persistió el texto.
             texto = await self.client.extraer(document_id)
             await self.client.notificar(document_id, "extraido", f"{len(texto)} caracteres")
             pasos_completados.append("extraido")
