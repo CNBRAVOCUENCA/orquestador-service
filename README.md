@@ -124,8 +124,11 @@ reproducible. El `Dockerfile` y `infra/Dockerfile.remote` usan `uv sync --locked
 El workflow de GitHub Actions ejecuta automáticamente esta suite en cada push y
 pull request.
 
-## Pendiente futuro
-Retry y Circuit Breaker en `MicroserviciosClient`.
+## Resiliencia
+
+Las políticas de retry, Circuit Breaker y Rate Limit, junto con su alcance y
+pruebas reproducibles, están documentadas en
+[`infra/RESILIENCE.md`](infra/RESILIENCE.md).
 
 ## Stack
 Python 3.12+ · FastAPI · httpx · redis · pytest + respx

@@ -5,7 +5,7 @@ services:
       dockerfile: Dockerfile.remote
       args:
         SERVICE_REPO: https://github.com/CNBRAVOCUENCA/resumen-service.git
-        SERVICE_REF: c0fb3e5ee4d0576b5bde1e47b5f9a8255a871fcd
+        SERVICE_REF: cc8959bb6f177d9ee5cfe81199a887037394abaa
       network: host
     environment:
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
@@ -28,5 +28,9 @@ services:
       - traefik.http.routers.resumen.rule=Host(`resumen.localhost`)
       - traefik.http.routers.resumen-public.rule=PathPrefix(`/api/v1/summarize`)
       - traefik.http.routers.resumen-public.priority=100
+      - traefik.http.routers.resumen-public.middlewares=api-ratelimit@file,api-circuitbreaker@file
+      - traefik.http.routers.resumen-internal.entrypoints=web-internal
+      - traefik.http.routers.resumen-internal.rule=PathPrefix(`/api/v1/summarize`)
+      - traefik.http.routers.resumen-internal.middlewares=api-circuitbreaker@file
       - traefik.http.services.resumen.loadbalancer.server.port=8000
     networks: [web]

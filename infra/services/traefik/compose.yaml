@@ -11,7 +11,10 @@ services:
       - --providers.consulcatalog.exposedbydefault=false
       - --providers.consulcatalog.strictchecks=passing
       - --providers.consulcatalog.refreshinterval=5s
+      - --providers.file.directory=/etc/traefik/dynamic
+      - --providers.file.watch=true
       - --entrypoints.web.address=:80
+      - --entrypoints.web-internal.address=:8081
       - --ping=true
       - --api.dashboard=true
       - --api.insecure=true
@@ -23,6 +26,7 @@ services:
       TRAEFIK_PROVIDERS_CONSULCATALOG_ENDPOINT_TOKEN: ${CONSUL_HTTP_TOKEN:-}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./dynamic:/etc/traefik/dynamic:ro
     depends_on:
       consul:
         condition: service_healthy

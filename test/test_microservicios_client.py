@@ -68,3 +68,11 @@ async def test_servicio_caido_no_tiene_codigo_de_estado():
     with pytest.raises(PasoSagaError) as exc_info:
         await _client().extraer(1)
     assert exc_info.value.status_code is None
+
+
+@respx.mock
+async def test_error_temporal_no_reintenta_post():
+    ruta = respx.post(f"{EXT}/api/v1/extract").mock(return_value=httpx.Response(503))
+    with pytest.raises(PasoSagaError):
+        await _client().extraer(1)
+    assert ruta.call_count == 1

@@ -1,0 +1,14 @@
+http:
+  middlewares:
+    api-ratelimit:
+      rateLimit:
+        average: 10
+        period: 1s
+        burst: 20
+    api-circuitbreaker:
+      circuitBreaker:
+        expression: "ResponseCodeRatio(500, 600, 0, 600) > 0.5 || NetworkErrorRatio() > 0.2"
+        checkPeriod: 1s
+        fallbackDuration: 5s
+        recoveryDuration: 10s
+        responseCode: 503
