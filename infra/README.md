@@ -70,6 +70,13 @@ finales contienen el entorno virtual y el codigo de la aplicacion, no las
 herramientas de construccion (`git` ni `uv`). Las dependencias se instalan antes
 de copiar el codigo para reutilizar la capa cuando solo cambia la aplicacion.
 
+Las cinco imágenes de aplicación usan el nombre
+`IMAGE_NAMESPACE/<servicio>:<commit-sha>`. Las variables `*_VERSION` de `.env`
+fijan sus tags; para los cuatro servicios remotos, la misma variable determina
+`SERVICE_REF` y el tag de imagen. El valor `ORQUESTADOR_VERSION=dev` es solo
+para builds locales. Consulta [DEPLOYMENT.md](../DEPLOYMENT.md) para el flujo de
+build/publicación, el modo de ejecución de una release y el rollback.
+
 ## Levantar todo
 
 Desde la raiz de `orquestador-service`, inicia el stack con Python:
@@ -78,6 +85,19 @@ Desde la raiz de `orquestador-service`, inicia el stack con Python:
 python3 z-scrips-automaticos/linux/copiar_env.py
 python3 z-scrips-automaticos/linux/iniciar.py
 ```
+
+El inicio normal construye las aplicaciones desde sus referencias fijadas.
+Para construir una release, establece los SHA en `.env` (el del orquestador
+debe coincidir con `git rev-parse HEAD`) y ejecuta
+`python3 z-scrips-automaticos/linux/iniciar.py --build-release`. Para ejecutar
+imágenes ya publicadas, establece los SHA y `IMAGE_NAMESPACE` de esa release en
+`.env`, autentícate en el registry y usa
+`python3 z-scrips-automaticos/linux/iniciar.py --release`; ese modo valida los
+SHA, descarga las imágenes y no las reconstruye. El lanzador Windows acepta
+los modos `z-scrips-automaticos\windows\iniciar.bat --build-release` y
+`z-scrips-automaticos\windows\iniciar.bat --release`. Si no hay registry,
+`--local-release` ejecuta las imágenes ya construidas en el daemon local sin
+intentar descargarlas.
 
 En Windows están disponibles los lanzadores
 `z-scrips-automaticos\windows\copiar-env.bat` y
