@@ -1,6 +1,5 @@
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 SERVICE_ROUTES = {
     "documentos": (
@@ -26,6 +25,13 @@ SERVICE_ROUTES = {
         ("orquestador-public", "PathPrefix(`/api/v1/procesar`)"),
     ),
 }
+PUBLIC_ROUTERS = {
+    "documentos": ("documentos-public", "documentos-docs"),
+    "extraccion": ("extraccion-public", "extraccion-sync"),
+    "resumen": ("resumen-public",),
+    "notificaciones": ("notificaciones-public",),
+    "orquestador": ("orquestador-public",),
+}
 
 
 def test_compose_keeps_docker_routes_and_maps_equivalent_consul_tags():
@@ -49,3 +55,15 @@ def test_compose_keeps_docker_routes_and_maps_equivalent_consul_tags():
         for router, rule in routes:
             assert f"traefik.http.routers.{router}.rule={rule}" in compose
             assert f"traefik.http.routers.{router}-consul.rule={rule}" in tags_line
+
+
+def test_public_routes_are_limited_to_the_web_entrypoint():
+    for service, routers in PUBLIC_ROUTERS.items():
+        compose = (
+            ROOT / "infra" / "services" / service / "compose.yaml"
+        ).read_text(encoding="utf-8")
+        tags_line = next(line for line in compose.splitlines() if "CONSUL_SERVICE_TAGS:" in line)
+
+        for router in routers:
+            assert f"traefik.http.routers.{router}.entrypoints=web" in compose
+            assert f"traefik.http.routers.{router}-consul.entrypoints=web" in tags_line

@@ -4,7 +4,6 @@ import socket
 import httpx
 import pytest
 import respx
-
 from App.config.settings import Settings
 from App.services.consul_registration import ConsulRegistration, _instance_address
 
