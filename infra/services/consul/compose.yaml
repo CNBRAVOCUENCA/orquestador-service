@@ -1,6 +1,6 @@
 services:
   consul:
-    image: hashicorp/consul:1.21.5
+    image: hashicorp/consul:1.21.5@sha256:6126c30072690cb3173a450ff5bde120c3a01e11c9dccab83b1b2314d4c828bd
     command:
       - agent
       - -server

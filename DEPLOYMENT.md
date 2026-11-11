@@ -52,6 +52,19 @@ paridad dev/prod y procesos de administración.
   locales con `--local-release`, que también valida los SHA pero no intenta
   descargarlos.
 
+### Qué queda fijado y qué no
+
+| Imagen | Cómo se fija | Motivo |
+|---|---|---|
+| Las 5 aplicaciones (`pdf-ms/<servicio>`) | Tag = SHA completo del commit (`*_VERSION`), que también es el `SERVICE_REF` del build | Reproducible y trazable al código; rollback = volver a los SHA anteriores |
+| Traefik, MongoDB, Redis, cloudflared | Digest `@sha256:` | Infraestructura inmutable |
+| Consul, Prometheus, Grafana | `tag@sha256:` (versión legible + digest) | Inmutable; el tag queda solo como referencia para personas |
+| `python:3.12-slim` / `python:3.12-alpine` (base de los Dockerfile) | Tag, sin digest, a propósito | Se reconstruye con `docker compose build --pull` para recibir parches de seguridad del sistema; Trivy en CI controla la imagen resultante. La imagen de aplicación construida sí queda fija por su SHA |
+
+Para actualizar una imagen de infraestructura se cambia el digest en su
+`compose.yaml` en un commit propio (nunca se usa `latest`). Los digests son los
+del índice multi-arquitectura publicado en Docker Hub para ese tag.
+
 ### Rollback
 
 Para volver a una release, restaura en `.env` los cinco SHA de imagen usados por
