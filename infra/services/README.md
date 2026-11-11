@@ -20,18 +20,29 @@ Los nombres `web` y `mongo_data` son recursos compartidos definidos en el
 Compose principal. Las rutas de `build.context` se resuelven relativas al
 `compose.yaml` de cada componente.
 
-Los servicios HTTP que ya incluyen la implementación de registro se registran
-en Consul con `CONSUL_SERVICE_NAME`, `CONSUL_SERVICE_PORT` y tags Traefik en
-`CONSUL_SERVICE_TAGS`; Traefik solo publica servicios saludables. Los
-`SERVICE_REF` actuales de los servicios remotos aún fijan commits sin ese
-registro, así que las imágenes remotas integradas no se registran y Consul no
-está activo para ellas. El rollout end-to-end queda bloqueado hasta que cada
-servicio publique/integre la implementación y se actualicen todos sus
-`SERVICE_REF` a commits publicados. No apuntes a commits locales o inexistentes.
-La migración está en estado dual temporal: Docker provider y etiquetas Docker
-existentes siguen activos mientras ConsulCatalog usa nombres de router y
-servicio con sufijo `-consul`. No se debe cortar el provider Docker hasta
-verificar en ejecución rutas Consul, checks de salud y recuperación.
+Descubrimiento de servicios: **Consul es el único proveedor de rutas de Traefik**
+(el provider Docker está desactivado y Traefik ya no monta el socket de Docker).
+
+- Cada servicio se registra al arrancar en Consul con `CONSUL_SERVICE_NAME`,
+  `CONSUL_SERVICE_PORT` y sus rutas en `CONSUL_SERVICE_TAGS` (routers públicos en
+  `web`, internos en `web-internal`, y el `Host(...)` de cada servicio). Los
+  `SERVICE_REF` de `.env.example` apuntan a commits publicados que incluyen ese
+  registro.
+- ID de instancia: `<servicio>-<hostname>`; cada réplica tiene un ID único.
+- Health check HTTP a `/health` cada 10 s; con `strictchecks=passing` Traefik solo
+  envía tráfico a instancias sanas. Si una instancia falla deja de recibir tráfico
+  y, tras 1 minuto en estado crítico, Consul la da de baja.
+- Al apagarse, cada servicio se da de baja. Al arrancar, borra registros viejos que
+  apunten a su misma IP:puerto (Docker reutiliza IP y un registro huérfano pasaría
+  el health check contra el contenedor nuevo).
+- Reinicio de Consul: corre como servidor con datos en el volumen `consul_data`,
+  así que conserva el catálogo al reiniciarse. Mientras Consul está caído, Traefik
+  mantiene la última configuración conocida; las rutas nuevas se publican cuando
+  Consul vuelve.
+- Rutas públicas protegidas con la cadena `api-publico@file` (Rate Limit + Circuit
+  Breaker, ver `infra/RESILIENCE.md`); las internas, con `api-circuitbreaker@file`.
+  Como `CONSUL_SERVICE_TAGS` se separa por comas, ningún valor de etiqueta lleva comas.
+
 `CONSUL_HTTP_TOKEN` es opcional: configuralo
 desde un gestor de secretos o un `.env` local ignorado por Git, nunca en un
 archivo versionado. Los tokens no se escriben en logs.
