@@ -12,3 +12,11 @@ http:
         fallbackDuration: 5s
         recoveryDuration: 10s
         responseCode: 503
+    # Cadena para los routers que publica Consul: una etiqueta de Consul no puede
+    # llevar comas (el servicio separa CONSUL_SERVICE_TAGS por coma), así que se
+    # referencia una sola cadena con las dos políticas.
+    api-publico:
+      chain:
+        middlewares:
+          - api-ratelimit
+          - api-circuitbreaker

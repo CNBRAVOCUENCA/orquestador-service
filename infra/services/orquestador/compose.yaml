@@ -21,7 +21,7 @@ services:
       CONSUL_HTTP_TOKEN: ${CONSUL_HTTP_TOKEN:-}
       CONSUL_SERVICE_NAME: orquestador
       CONSUL_SERVICE_PORT: "8000"
-      CONSUL_SERVICE_TAGS: "traefik.enable=true,traefik.http.routers.orquestador-consul.rule=Host(`${ORQUESTADOR_HOST:-orquestador.localhost}`),traefik.http.routers.orquestador-public-consul.rule=PathPrefix(`/api/v1/procesar`),traefik.http.routers.orquestador-public-consul.entrypoints=web,traefik.http.routers.orquestador-public-consul.priority=100,traefik.http.services.orquestador-consul.loadbalancer.server.port=8000"
+      CONSUL_SERVICE_TAGS: "traefik.enable=true,traefik.http.routers.orquestador-consul.rule=Host(`${ORQUESTADOR_HOST:-orquestador.localhost}`),traefik.http.routers.orquestador-public-consul.rule=PathPrefix(`/api/v1/procesar`),traefik.http.routers.orquestador-public-consul.entrypoints=web,traefik.http.routers.orquestador-public-consul.priority=100,traefik.http.services.orquestador-consul.loadbalancer.server.port=8000,traefik.http.routers.orquestador-public-consul.middlewares=api-publico@file"
     depends_on:
       consul:
         condition: service_healthy
