@@ -11,6 +11,8 @@ services:
     environment:
       DATABASE_URL: mongodb://mongo:27017
       DATABASE_NAME: notificaciones_service
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
+      OTEL_SERVICE_NAME: notificaciones
       CONSUL_HTTP_ADDR: http://consul:8500
       CONSUL_HTTP_TOKEN: ${CONSUL_HTTP_TOKEN:-}
       CONSUL_SERVICE_NAME: notificaciones

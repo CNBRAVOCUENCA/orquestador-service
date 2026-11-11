@@ -18,6 +18,8 @@ services:
       MAX_INFLIGHT: "16"
       CACHE_ENABLED: "true"
       REDIS_URL: redis://redis:6379
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
+      OTEL_SERVICE_NAME: extraccion
       CONSUL_HTTP_ADDR: http://consul:8500
       CONSUL_HTTP_TOKEN: ${CONSUL_HTTP_TOKEN:-}
       CONSUL_SERVICE_NAME: extraccion

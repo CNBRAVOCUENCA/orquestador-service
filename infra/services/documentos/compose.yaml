@@ -12,6 +12,8 @@ services:
       DATABASE_URL: mongodb://mongo:27017
       DATABASE_NAME: documentos_service
       EXTRACTION_SERVICE_API_KEY: ${INTERNAL_SERVICE_API_KEY:?Configura INTERNAL_SERVICE_API_KEY en .env}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
+      OTEL_SERVICE_NAME: documentos
       CONSUL_HTTP_ADDR: http://consul:8500
       CONSUL_HTTP_TOKEN: ${CONSUL_HTTP_TOKEN:-}
       CONSUL_SERVICE_NAME: documentos

@@ -16,6 +16,7 @@ from App.logging_config import configurar_logging
 from App.services.consul_registration import ConsulRegistration
 from App.services.microservicios_client import MicroserviciosClient
 from App.telemetry import install_telemetry
+from App.tracing import configurar_trazas
 
 # Disable API documentation in production (when debug=False)
 docs_url = "/docs" if settings.debug else None
@@ -46,6 +47,9 @@ app = FastAPI(
 )
 
 install_telemetry(app, settings.app_name)
+# Después de install_telemetry: el middleware de OpenTelemetry queda por fuera y el
+# span ya está activo cuando se calculan las métricas y el x-trace-id.
+configurar_trazas(app, settings.app_name)
 
 # CORS: permite que el front (página web) llame a este servicio desde el navegador
 app.add_middleware(
