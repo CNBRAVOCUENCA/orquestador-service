@@ -67,3 +67,27 @@ def test_public_routes_are_limited_to_the_web_entrypoint():
         for router in routers:
             assert f"traefik.http.routers.{router}.entrypoints=web" in compose
             assert f"traefik.http.routers.{router}-consul.entrypoints=web" in tags_line
+
+
+def test_routers_publicos_de_consul_tambien_tienen_rate_limit_y_circuit_breaker():
+    """Si Consul publica un router público sin middlewares, a igual prioridad puede
+    ganarle al de Docker y el tráfico esquiva el Rate Limit y el Circuit Breaker."""
+    resilience = (
+        ROOT / "infra" / "services" / "traefik" / "dynamic" / "resilience.yml"
+    ).read_text(encoding="utf-8")
+    assert "api-publico:" in resilience
+    assert "- api-ratelimit" in resilience
+    assert "- api-circuitbreaker" in resilience
+
+    protegidos = {**PUBLIC_ROUTERS, "documentos": ("documentos-public",)}
+    for service, routers in protegidos.items():
+        compose = (
+            ROOT / "infra" / "services" / service / "compose.yaml"
+        ).read_text(encoding="utf-8")
+        tags_line = next(line for line in compose.splitlines() if "CONSUL_SERVICE_TAGS:" in line)
+        for router in routers:
+            assert (
+                f"traefik.http.routers.{router}.middlewares=api-ratelimit@file,api-circuitbreaker@file"
+                in compose
+            )
+            assert f"traefik.http.routers.{router}-consul.middlewares=api-publico@file" in tags_line
