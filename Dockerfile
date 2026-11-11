@@ -24,6 +24,8 @@ FROM python:3.15-alpine AS runtime
 
 RUN apk upgrade --no-cache
 
+RUN python -m pip uninstall --yes pip
+
 WORKDIR /app
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
