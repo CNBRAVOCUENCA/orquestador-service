@@ -90,10 +90,10 @@ async def _check_redis() -> dict[str, str | bool]:
 async def readiness(response: Response) -> dict:
     """Readiness: comprueba las dependencias necesarias antes de enrutar trabajo."""
     client = MicroserviciosClient(
-        documentos_url=settings.documentos_url,
-        extraccion_url=settings.extraccion_url,
-        resumen_url=settings.resumen_url,
-        notificaciones_url=settings.notificaciones_url,
+        documentos_url=settings.documentos_health_url or settings.documentos_url,
+        extraccion_url=settings.extraccion_health_url or settings.extraccion_url,
+        resumen_url=settings.resumen_health_url or settings.resumen_url,
+        notificaciones_url=settings.notificaciones_health_url or settings.notificaciones_url,
         timeout=settings.readiness_timeout_seconds,
     )
     servicios = await client.verificar_salud()

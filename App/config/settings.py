@@ -16,6 +16,14 @@ class Settings(BaseSettings):
     resumen_url: str = "http://localhost:8003"
     notificaciones_url: str = "http://localhost:8004"
 
+    # URLs para /ready. Si el tráfico pasa por Traefik (DOCUMENTOS_URL=http://traefik:8081),
+    # /ready tiene que consultar el /health de cada servicio directo, porque Traefik no
+    # publica /health. Si quedan vacías, se usan las URLs de arriba.
+    documentos_health_url: str = ""
+    extraccion_health_url: str = ""
+    resumen_health_url: str = ""
+    notificaciones_health_url: str = ""
+
     resumen_max_words: int = 150
 
     # Redis (cache de resultados de la Saga)
