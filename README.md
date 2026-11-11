@@ -12,7 +12,8 @@ POST /procesar/{document_id}
    ├─(cache hit? → devuelve resultado guardado)
    │
    ├─ notificar "subido"
-   ├─ extraccion-service   → texto     → notificar "extraido"
+   ├─ extraccion-service   → extrae y persiste el texto en documentos-service
+   │                         → notificar "extraido" solo tras confirmar
    ├─ resumen-service      → resumen   → notificar "resumido"
    ├─ notificar "notificado"  ✓ éxito → guardar en cache (Redis)
    │
@@ -22,13 +23,17 @@ POST /procesar/{document_id}
 Es una **Saga orquestada**: un coordinador central (este servicio) dirige los pasos
 y decide la compensación si algo sale mal — porque al estar cada microservicio en su
 propia base de datos, no existe una transacción única que los abarque a todos.
+Extracción devuelve éxito únicamente después de que Documentos confirme la
+persistencia de `extracted_text` y `is_processed=true`. Si falla esa escritura,
+la Saga no continúa al resumen ni informa éxito; ejecuta la compensación habitual.
 
 ## Cache con Redis
 
 Antes de procesar, consulta Redis: si el documento ya se procesó con éxito, devuelve
 el resultado cacheado sin volver a llamar a extracción + resumen (ahorra la llamada
-cara a la IA). Se puede saltear el cache con `?forzar=true`. Si Redis no está
-disponible, el servicio degrada a un cache en memoria automáticamente.
+cara a la IA). Se puede saltear el cache con `?forzar=true`. Si `CACHE_ENABLED=true`,
+Redis es una dependencia requerida para readiness. Para operar sin Redis, configura
+`CACHE_ENABLED=false`; el orquestador usará un cache en memoria.
 
 ## Arquitectura (capas)
 
@@ -48,14 +53,27 @@ test/                              # 14 tests (saga, compensación, cache, clien
 | Método | Ruta | Descripción |
 |---|---|---|
 | POST | `/api/v1/procesar/{document_id}` | Ejecuta la Saga. `?forzar=true` ignora el cache |
-| GET | `/health` | Health check |
+| GET | `/health` | Liveness: confirma que el proceso está activo; no comprueba dependencias |
+| GET | `/ready` | Readiness: verifica dependencias y devuelve 503 si alguna requerida falla |
 
 La respuesta siempre es 200 con el resultado: `{document_id, exito, estado_final, pasos_completados, resumen, error}`. Si la Saga falló, `exito=false` y `error` dice en qué paso.
+
+El proxy y el healthcheck de Docker Compose deben usar `/ready` antes de enviar
+trabajo. Una respuesta 200 con `status: "ok"` significa que Documentos,
+Extracción, Resumen y Notificaciones respondieron correctamente; si el caché
+está habilitado, también debe responder Redis. Una respuesta 503 con
+`status: "error"` incluye en `dependencies` qué servicio falló y si fue un
+timeout, un error de conexión o una respuesta HTTP no exitosa. Con
+`CACHE_ENABLED=false`, Redis figura como `disabled` y no afecta la readiness.
+`/health` permanece como liveness y seguirá respondiendo 200 mientras el
+proceso pueda atender HTTP, aunque haya dependencias caídas.
 
 ## Ejecución con Docker
 
 1. Instala Docker Desktop y Docker Compose v2.20 o posterior (se usa `include`).
 2. Copia `.env.example` como `.env` y completa `GEMINI_API_KEY`.
+   Configura también `INTERNAL_SERVICE_API_KEY` con un secreto aleatorio largo;
+   se comparte únicamente entre `documentos-service` y `extraccion-service`.
 3. Ejecuta el script multiplataforma:
 
 ```bash
@@ -118,8 +136,11 @@ reproducible. El `Dockerfile` y `infra/Dockerfile.remote` usan `uv sync --locked
 El workflow de GitHub Actions ejecuta automáticamente esta suite en cada push y
 pull request.
 
-## Pendiente futuro
-Retry y Circuit Breaker en `MicroserviciosClient`.
+## Resiliencia
+
+Las políticas de retry, Circuit Breaker y Rate Limit, junto con su alcance y
+pruebas reproducibles, están documentadas en
+[`infra/RESILIENCE.md`](infra/RESILIENCE.md).
 
 ## Stack
 Python 3.12+ · FastAPI · httpx · redis · pytest + respx
@@ -154,3 +175,59 @@ con `apk` o renueva la imagen base.
 Si es de Python, se actualiza igual que con pip-audit.
 Si Fixed Version está vacío, todavía no hay parche: se registra en un issue y se revisa en la corrida semanal.
 Exit code 0 = sin hallazgos que bloqueen. Exit code 1 = hay que corregir antes de mergear.
+
+## Observabilidad del flujo completo
+
+El stack incluye Prometheus + Grafana para las métricas HTTP de baja cardinalidad y **Jaeger** como backend de trazas distribuidas con OpenTelemetry.
+
+### Qué se mide
+
+- `http_requests_total`: tráfico por servicio, método, ruta y estado HTTP.
+- `http_request_duration_seconds`: latencia de respuesta por servicio.
+- **Trazas OpenTelemetry**: cada petición entrante crea un span (FastAPI) y cada llamada saliente con httpx crea un span hijo e inyecta el header W3C `traceparent`, así una subida recorre en una sola traza orquestador → documentos → extracción → resumen → notificaciones. Los spans se exportan por OTLP/HTTP a Jaeger (`OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318`); sin esa variable las trazas quedan desactivadas. Código: `App/tracing.py` en cada servicio.
+- `x-trace-id`: cada respuesta devuelve el trace id de OpenTelemetry, para buscar la traza en Jaeger.
+- La etiqueta `route` de las métricas es la plantilla de la ruta (`/api/v1/documents/{doc_id}`), no la URL concreta; lo que no coincide con ninguna ruta va a `sin_ruta`.
+- Los logs incluyen `trace_id` en stdout para correlacionar eventos del mismo flujo.
+
+No se registran documentos, textos completos, prompts, headers ni API keys: los spans solo llevan método, ruta, estado y duración, y `/health`, `/ready` y `/metrics` no generan spans. Las métricas usan solo etiquetas de baja cardinalidad: servicio, método, ruta y estado.
+
+### Levantar el stack de observabilidad
+
+```bash
+docker compose -f orquestador-service/infra/docker-compose.yml up -d --wait
+```
+
+Luego puede abrirse:
+
+- Prometheus: `http://localhost:9090`
+- Grafana: `http://localhost:3000` (usuario `admin`, clave `admin`), con Prometheus y Jaeger como fuentes de datos
+- Jaeger (trazas): `http://localhost:16686` (buscar por servicio o pegar el `x-trace-id` de una respuesta)
+
+La vista predefinida `Microservicios - Flujo y errores` ya queda conectada a Prometheus.
+
+### Consultas útiles
+
+```bash
+# tráfico por servicio
+curl 'http://localhost:9090/api/v1/query?query=sum%20by%20(service)%20(rate(http_requests_total%5B5m%5D))'
+
+# errores 5xx
+curl 'http://localhost:9090/api/v1/query?query=sum%20by%20(service)%20(rate(http_requests_total%7Bstatus=~"5.."%7D%5B5m%5D))'
+
+# p95 de latencia
+curl 'http://localhost:9090/api/v1/query?query=histogram_quantile(0.95,%20sum%20by%20(le,service)%20(rate(http_request_duration_seconds_bucket%5B5m%5D)))'
+```
+
+### Apagar
+
+```bash
+docker compose -f orquestador-service/infra/docker-compose.yml down
+```
+
+### Prueba reproducible end-to-end
+
+`python infra/tests/e2e/verificar_flujo.py` sube un PDF, sigue la Saga y comprueba que su traza está en Jaeger con spans de los 5 servicios y que Prometheus tiene métricas de los 5.
+
+### Si se cae la observabilidad
+
+El flujo de negocio no se interrumpe: los servicios no dependen de Jaeger ni de Prometheus. Los spans se exportan en segundo plano con timeout de 2 s y, si Jaeger no responde, se descartan; las métricas se vuelven a recolectar en el siguiente scrape.

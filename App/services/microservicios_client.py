@@ -4,11 +4,13 @@ Toda la comunicación saliente del orquestador pasa por acá — es el punto
 donde se agregarían Retry y Circuit Breaker.
 """
 
+import asyncio
 from typing import Any, Protocol
 
 import httpx
 
 from App.exceptions import PasoSagaError
+from App.telemetry import request_headers_for_outgoing
 
 
 class ServiciosPort(Protocol):
@@ -44,11 +46,41 @@ class MicroserviciosClient:
         self.notificaciones_url = notificaciones_url.rstrip("/")
         self.timeout = timeout
 
+    async def verificar_salud(self) -> dict[str, dict[str, str]]:
+        """Consulta en paralelo el endpoint de salud de cada microservicio."""
+        servicios = {
+            "documentos": self.documentos_url,
+            "extraccion": self.extraccion_url,
+            "resumen": self.resumen_url,
+            "notificaciones": self.notificaciones_url,
+        }
+
+        async def verificar(
+            client: httpx.AsyncClient, nombre: str, url: str
+        ) -> tuple[str, dict[str, str]]:
+            try:
+                response = await client.get(f"{url}/health")
+            except httpx.TimeoutException:
+                return nombre, {"status": "error", "detail": "timeout"}
+            except httpx.RequestError:
+                return nombre, {"status": "error", "detail": "connection_error"}
+
+            if not response.is_success:
+                return nombre, {"status": "error", "detail": f"http_{response.status_code}"}
+            return nombre, {"status": "ok"}
+
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            resultados = await asyncio.gather(
+                *(verificar(client, nombre, url) for nombre, url in servicios.items())
+            )
+        return dict(resultados)
+
     async def _post(self, url: str, paso: str, **kwargs: Any) -> dict:
         """POST común: traduce fallos de red y respuestas >= 400 a PasoSagaError."""
+        headers = request_headers_for_outgoing()
         async with httpx.AsyncClient(timeout=self.timeout) as client:
             try:
-                resp = await client.post(url, **kwargs)
+                resp = await client.post(url, headers=headers, **kwargs)
             except httpx.HTTPError as exc:
                 raise PasoSagaError(paso, f"no se pudo contactar el servicio: {exc}") from exc
         if resp.status_code >= 400:
@@ -68,7 +100,7 @@ class MicroserviciosClient:
         return data["id"]
 
     async def extraer(self, document_id: int) -> str:
-        """Llama a extraccion-service. Devuelve el texto extraído."""
+        """Devuelve texto solo si Extracción confirmó su persistencia en Documentos."""
         data = await self._post(
             f"{self.extraccion_url}/api/v1/extract",
             paso="extraccion",
@@ -92,3 +124,4 @@ class MicroserviciosClient:
             paso="notificacion",
             json={"document_id": document_id, "estado": estado, "detalle": detalle},
         )
+

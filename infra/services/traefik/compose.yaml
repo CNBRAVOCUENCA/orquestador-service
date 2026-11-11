@@ -2,11 +2,15 @@ services:
   traefik:
     image: traefik@sha256:31267173a15b4944e797a76ffd9c419707c8d8b32fe5b610f80cd0cfa05f372d
     command:
-      - --providers.docker=true
-      - --providers.docker.endpoint=unix:///var/run/docker.sock
-      - --providers.docker.network=infra_web
-      - --providers.docker.exposedbydefault=false
+      - --providers.consulcatalog=true
+      - --providers.consulcatalog.endpoint.address=consul:8500
+      - --providers.consulcatalog.exposedbydefault=false
+      - --providers.consulcatalog.strictchecks=passing
+      - --providers.consulcatalog.refreshinterval=5s
+      - --providers.file.directory=/etc/traefik/dynamic
+      - --providers.file.watch=true
       - --entrypoints.web.address=:80
+      - --entrypoints.web-internal.address=:8081
       - --ping=true
       - --api.dashboard=true
       - --api.insecure=true
@@ -14,9 +18,12 @@ services:
       - "80:80"
       - "8080:8080"
     environment:
-      DOCKER_API_VERSION: "1.44"
+      TRAEFIK_PROVIDERS_CONSULCATALOG_ENDPOINT_TOKEN: ${CONSUL_HTTP_TOKEN:-}
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./dynamic:/etc/traefik/dynamic:ro
+    depends_on:
+      consul:
+        condition: service_healthy
     networks: [web]
     healthcheck:
       test: ["CMD", "traefik", "healthcheck", "--ping"]

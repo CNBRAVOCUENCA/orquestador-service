@@ -1,0 +1,22 @@
+http:
+  middlewares:
+    api-ratelimit:
+      rateLimit:
+        average: 10
+        period: 1s
+        burst: 20
+    api-circuitbreaker:
+      circuitBreaker:
+        expression: "ResponseCodeRatio(500, 600, 0, 600) > 0.5 || NetworkErrorRatio() > 0.2"
+        checkPeriod: 1s
+        fallbackDuration: 5s
+        recoveryDuration: 10s
+        responseCode: 503
+    # Cadena para los routers que publica Consul: una etiqueta de Consul no puede
+    # llevar comas (el servicio separa CONSUL_SERVICE_TAGS por coma), así que se
+    # referencia una sola cadena con las dos políticas.
+    api-publico:
+      chain:
+        middlewares:
+          - api-ratelimit
+          - api-circuitbreaker

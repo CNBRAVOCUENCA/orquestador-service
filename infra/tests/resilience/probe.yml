@@ -1,0 +1,22 @@
+http:
+  routers:
+    probe-public:
+      entryPoints:
+        - web
+      rule: PathPrefix(`/probe`)
+      middlewares:
+        - api-ratelimit
+        - api-circuitbreaker
+      service: probe
+    probe-internal:
+      entryPoints:
+        - web-internal
+      rule: PathPrefix(`/probe`)
+      middlewares:
+        - api-circuitbreaker
+      service: probe
+  services:
+    probe:
+      loadBalancer:
+        servers:
+          - url: http://backend:8000

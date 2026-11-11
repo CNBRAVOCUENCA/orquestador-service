@@ -1,22 +1,33 @@
 services:
   extraccion:
+    image: "${IMAGE_NAMESPACE:-pdf-ms}/extraccion:${EXTRACCION_VERSION:?Set EXTRACCION_VERSION in .env}"
     build:
       context: ../..
       dockerfile: Dockerfile.remote
       args:
         SERVICE_REPO: https://github.com/CNBRAVOCUENCA/extraccion-service.git
-        SERVICE_REF: a57c25dad69dbefe95107c093f6cb9b59bdbe4cb
+        SERVICE_REF: "${EXTRACCION_VERSION:?Set EXTRACCION_VERSION in .env}"
         # PyMuPDF: extracción rápida a Markdown (endpoint síncrono /extract del TP).
         UV_EXTRAS: --extra fast
       network: host
     environment:
       DOCUMENTOS_SERVICE_URL: http://documentos:8000
+      DOCUMENTOS_SERVICE_API_KEY: ${INTERNAL_SERVICE_API_KEY:?Configura INTERNAL_SERVICE_API_KEY en .env}
       EXTRACTOR_BACKEND: pymupdf
       EXTRACT_WORKERS: "1"
       MAX_INFLIGHT: "16"
       CACHE_ENABLED: "true"
       REDIS_URL: redis://redis:6379
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
+      OTEL_SERVICE_NAME: extraccion
+      CONSUL_HTTP_ADDR: http://consul:8500
+      CONSUL_HTTP_TOKEN: ${CONSUL_HTTP_TOKEN:-}
+      CONSUL_SERVICE_NAME: extraccion
+      CONSUL_SERVICE_PORT: "8000"
+      CONSUL_SERVICE_TAGS: "traefik.enable=true,traefik.http.routers.extraccion-consul.rule=Host(`extraccion.localhost`),traefik.http.routers.extraccion-public-consul.rule=PathPrefix(`/api/v1/extract`),traefik.http.routers.extraccion-public-consul.entrypoints=web,traefik.http.routers.extraccion-public-consul.priority=100,traefik.http.routers.extraccion-public-consul.middlewares=api-publico@file,traefik.http.routers.extraccion-internal-consul.entrypoints=web-internal,traefik.http.routers.extraccion-internal-consul.rule=PathPrefix(`/api/v1/extract`),traefik.http.routers.extraccion-internal-consul.middlewares=api-circuitbreaker@file,traefik.http.routers.extraccion-sync-consul.rule=Path(`/extract`),traefik.http.routers.extraccion-sync-consul.entrypoints=web,traefik.http.routers.extraccion-sync-consul.priority=100,traefik.http.routers.extraccion-sync-consul.middlewares=api-publico@file,traefik.http.routers.extraccion-sync-internal-consul.entrypoints=web-internal,traefik.http.routers.extraccion-sync-internal-consul.rule=Path(`/extract`),traefik.http.routers.extraccion-sync-internal-consul.middlewares=api-circuitbreaker@file,traefik.http.services.extraccion-consul.loadbalancer.server.port=8000"
     depends_on:
+      consul:
+        condition: service_healthy
       documentos:
         condition: service_healthy
       redis:
@@ -26,13 +37,4 @@ services:
       interval: 5s
       timeout: 5s
       retries: 12
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.extraccion.rule=Host(`extraccion.localhost`)
-      - traefik.http.routers.extraccion-public.rule=PathPrefix(`/api/v1/extract`)
-      - traefik.http.routers.extraccion-public.priority=100
-      # Endpoint síncrono del TP de carga: POST /extract con el PDF binario.
-      - traefik.http.routers.extraccion-sync.rule=Path(`/extract`)
-      - traefik.http.routers.extraccion-sync.priority=100
-      - traefik.http.services.extraccion.loadbalancer.server.port=8000
     networks: [web]

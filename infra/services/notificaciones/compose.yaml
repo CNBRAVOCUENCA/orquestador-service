@@ -1,16 +1,26 @@
 services:
   notificaciones:
+    image: "${IMAGE_NAMESPACE:-pdf-ms}/notificaciones:${NOTIFICACIONES_VERSION:?Set NOTIFICACIONES_VERSION in .env}"
     build:
       context: ../..
       dockerfile: Dockerfile.remote
       args:
         SERVICE_REPO: https://github.com/CNBRAVOCUENCA/notificaciones-service.git
-        SERVICE_REF: b2e4eadacccccb5568ef1e8133b1a03fb7a73cec
+        SERVICE_REF: "${NOTIFICACIONES_VERSION:?Set NOTIFICACIONES_VERSION in .env}"
       network: host
     environment:
       DATABASE_URL: mongodb://mongo:27017
       DATABASE_NAME: notificaciones_service
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
+      OTEL_SERVICE_NAME: notificaciones
+      CONSUL_HTTP_ADDR: http://consul:8500
+      CONSUL_HTTP_TOKEN: ${CONSUL_HTTP_TOKEN:-}
+      CONSUL_SERVICE_NAME: notificaciones
+      CONSUL_SERVICE_PORT: "8000"
+      CONSUL_SERVICE_TAGS: "traefik.enable=true,traefik.http.routers.notificaciones-consul.rule=Host(`notificaciones.localhost`),traefik.http.routers.notificaciones-public-consul.rule=PathPrefix(`/api/v1/estados`),traefik.http.routers.notificaciones-public-consul.entrypoints=web,traefik.http.routers.notificaciones-public-consul.priority=100,traefik.http.routers.notificaciones-public-consul.middlewares=api-publico@file,traefik.http.routers.notificaciones-internal-consul.entrypoints=web-internal,traefik.http.routers.notificaciones-internal-consul.rule=PathPrefix(`/api/v1/estados`),traefik.http.routers.notificaciones-internal-consul.middlewares=api-circuitbreaker@file,traefik.http.services.notificaciones-consul.loadbalancer.server.port=8000"
     depends_on:
+      consul:
+        condition: service_healthy
       mongo:
         condition: service_healthy
     healthcheck:
@@ -18,10 +28,4 @@ services:
       interval: 5s
       timeout: 5s
       retries: 12
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.notificaciones.rule=Host(`notificaciones.localhost`)
-      - traefik.http.routers.notificaciones-public.rule=PathPrefix(`/api/v1/estados`)
-      - traefik.http.routers.notificaciones-public.priority=100
-      - traefik.http.services.notificaciones.loadbalancer.server.port=8000
     networks: [web]

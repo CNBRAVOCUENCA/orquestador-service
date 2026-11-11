@@ -16,6 +16,14 @@ class Settings(BaseSettings):
     resumen_url: str = "http://localhost:8003"
     notificaciones_url: str = "http://localhost:8004"
 
+    # URLs para /ready. Si el tráfico pasa por Traefik (DOCUMENTOS_URL=http://traefik:8081),
+    # /ready tiene que consultar el /health de cada servicio directo, porque Traefik no
+    # publica /health. Si quedan vacías, se usan las URLs de arriba.
+    documentos_health_url: str = ""
+    extraccion_health_url: str = ""
+    resumen_health_url: str = ""
+    notificaciones_health_url: str = ""
+
     resumen_max_words: int = 150
 
     # Redis (cache de resultados de la Saga)
@@ -23,7 +31,15 @@ class Settings(BaseSettings):
     cache_ttl_seconds: int = 3600
     cache_enabled: bool = True
     http_timeout_seconds: float = 120.0
+    readiness_timeout_seconds: float = 5.0
     api_v1_prefix: str = "/api/v1"
+
+    consul_http_addr: str = ""
+    consul_http_token: str = ""
+    consul_service_name: str | None = None
+    consul_service_port: int = 8000
+    consul_service_tags: str = ""
+    consul_service_address: str | None = None
 
 
 settings = Settings()
