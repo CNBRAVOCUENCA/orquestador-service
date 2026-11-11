@@ -53,14 +53,21 @@ def _pdf(texto: str) -> bytes:
     return salida
 
 
-def _pedir(metodo: str, url: str, host: str | None, cuerpo: bytes | None = None, tipo: str | None = None):
+def _pedir(
+    metodo: str,
+    url: str,
+    host: str | None,
+    cuerpo: bytes | None = None,
+    tipo: str | None = None,
+    timeout: int = 180,
+):
     req = urllib.request.Request(url, data=cuerpo, method=metodo)
     if host:
         req.add_header("Host", host)
     if tipo:
         req.add_header("Content-Type", tipo)
     try:
-        with urllib.request.urlopen(req, timeout=180) as resp:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
             return resp.status, json.loads(resp.read() or b"null"), dict(resp.headers)
     except urllib.error.HTTPError as err:
         return err.code, None, dict(err.headers)
@@ -70,6 +77,22 @@ def _check(condicion: bool, mensaje: str) -> None:
     print(("OK   " if condicion else "FALLA") + " " + mensaje)
     if not condicion:
         sys.exit(1)
+
+
+def _esperar_ready(base: str, host: str, timeout: int = 90) -> dict:
+    limite = time.monotonic() + timeout
+    ultimo_estado = "sin respuesta"
+    while time.monotonic() < limite:
+        try:
+            estado, ready, _ = _pedir("GET", f"{base}/ready", host, timeout=5)
+        except (urllib.error.URLError, TimeoutError) as err:
+            ultimo_estado = str(err)
+        else:
+            if estado == 200 and isinstance(ready, dict) and ready.get("status") == "ok":
+                return ready
+            ultimo_estado = f"HTTP {estado}; respuesta: {ready}"
+        time.sleep(min(1, max(0, limite - time.monotonic())))
+    raise TimeoutError(f"/ready no quedó disponible en {timeout} s; {ultimo_estado}")
 
 
 def main() -> None:
@@ -82,8 +105,12 @@ def main() -> None:
     args = parser.parse_args()
     base = args.base.rstrip("/")
 
-    estado, ready, _ = _pedir("GET", f"{base}/ready", args.host_orquestador)
-    _check(estado == 200 and ready["status"] == "ok", f"/ready responde 200 ({ready and ready['dependencies']})")
+    try:
+        ready = _esperar_ready(base, args.host_orquestador)
+    except TimeoutError as err:
+        _check(False, str(err))
+    else:
+        _check(True, f"/ready responde 200 ({ready['dependencies']})")
 
     marca = uuid.uuid4().hex[:12]
     texto = f"Prueba e2e {marca}: microservicios, patron Saga, Circuit Breaker y Rate Limit."
@@ -128,6 +155,7 @@ def _verificar_observabilidad(args, cabeceras: dict) -> None:
     """Prompt 9: la misma petición deja una traza correlacionada y métricas de los 5 servicios."""
     trace_id = {k.lower(): v for k, v in cabeceras.items()}.get("x-trace-id", "")
     _check(len(trace_id) == 32, f"el orquestador devolvió x-trace-id {trace_id}")
+    esperados = {"orquestador", "documentos", "extraccion", "resumen", "notificaciones"}
     servicios: set[str] = set()
     for _ in range(15):  # los spans se exportan en lote: puede tardar unos segundos
         time.sleep(1)
@@ -137,13 +165,46 @@ def _verificar_observabilidad(args, cabeceras: dict) -> None:
             servicios = {p["serviceName"] for p in procesos}
             if len(servicios) >= 5:
                 break
-    esperados = {"orquestador", "documentos", "extraccion", "resumen", "notificaciones"}
     _check(esperados <= servicios, f"traza {trace_id} en Jaeger con spans de {sorted(servicios)}")
 
-    consulta = urllib.parse.quote('sum by (service) (http_requests_total)')
-    estado, metricas, _ = _pedir("GET", f"{args.prometheus.rstrip('/')}/api/v1/query?query={consulta}", None)
-    con_metricas = {r["metric"].get("service") for r in (metricas or {}).get("data", {}).get("result", [])}
-    _check(estado == 200 and len(con_metricas) >= 5, f"Prometheus tiene métricas de {sorted(con_metricas)}")
+    esperados_metricas = {f"{servicio}-service" for servicio in esperados}
+    try:
+        con_metricas = _esperar_metricas(args.prometheus, esperados_metricas)
+    except TimeoutError as err:
+        _check(False, str(err))
+    else:
+        _check(
+            esperados_metricas <= con_metricas,
+            f"Prometheus tiene métricas de {sorted(con_metricas)}",
+        )
+
+
+def _esperar_metricas(prometheus: str, esperados: set[str], timeout: int = 45) -> set[str]:
+    consulta = urllib.parse.quote("sum by (service) (http_requests_total)")
+    url = f"{prometheus.rstrip('/')}/api/v1/query?query={consulta}"
+    limite = time.monotonic() + timeout
+    con_metricas: set[str] = set()
+    ultimo_error = "Prometheus aún no publicó muestras"
+
+    while time.monotonic() < limite:
+        try:
+            estado, metricas, _ = _pedir("GET", url, None, timeout=5)
+            con_metricas = {
+                resultado["metric"].get("service")
+                for resultado in (metricas or {}).get("data", {}).get("result", [])
+                if resultado.get("metric", {}).get("service")
+            }
+            if estado == 200 and esperados <= con_metricas:
+                return con_metricas
+            ultimo_error = f"HTTP {estado}; servicios observados: {sorted(con_metricas)}"
+        except (urllib.error.URLError, TimeoutError) as err:
+            ultimo_error = str(err)
+        time.sleep(min(1, max(0, limite - time.monotonic())))
+
+    raise TimeoutError(
+        f"Prometheus no publicó métricas para {sorted(esperados)} "
+        f"en {timeout} s; {ultimo_error}"
+    )
 
 
 if __name__ == "__main__":

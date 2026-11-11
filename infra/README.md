@@ -165,27 +165,31 @@ docker compose -f infra\docker-compose.yml up -d --build --wait --wait-timeout 3
 ```
 
 Después de publicar/actualizar todos los `SERVICE_REF` como se describe arriba,
-confirma que los servicios estén en el catálogo, sus checks pasen y que los
-routers y servicios `-consul@consulcatalog` aparezcan en la API de Traefik:
+la configuración usa Consul Catalog como único provider de descubrimiento.
+Levanta un proyecto Compose aislado para validar fallos sin detener el stack
+normal ni tocar sus volúmenes:
 
 ```powershell
-docker compose -f infra\docker-compose.yml exec consul consul catalog services
-docker compose -f infra\docker-compose.yml exec consul consul health checks
-curl.exe http://localhost:8080/api/http/routers/documentos-consul@consulcatalog
-curl.exe http://localhost:8080/api/http/services/documentos-consul@consulcatalog
-curl.exe -H "Host: documentos.localhost" http://localhost/api/v1/documents
-curl.exe -H "Host: orquestador.localhost" http://localhost/health
+docker compose -p prompt-final-check -f infra\docker-compose.yml `
+  --env-file infra\.env up -d --build --wait --wait-timeout 300
+python infra\tests\e2e\verificar_consul.py
+docker compose -p prompt-final-check -f infra\docker-compose.yml `
+  --env-file infra\.env down
 ```
 
-Como Docker y ConsulCatalog están activos simultáneamente, un smoke test de URL
-puede ser atendido por cualquiera de los providers. Verifica específicamente el
-`*-consul@consulcatalog` en la API de Traefik y su lista de servidores para
-probar la ruta Consul. Para verificar recuperación, detén una instancia,
-confirma que su check pasa a crítico y que su IP desaparece de los servidores
-Consul de Traefik; vuelve a iniciarla y confirma que el check vuelve a `passing`
-y la IP reaparece. Esto verifica ConsulCatalog sin desactivar las rutas Docker.
-Al terminar, limpia el stack con
-`docker compose -f infra\docker-compose.yml down`.
+La prueba comprueba que la ruta y el router de `resumen` están disponibles,
+que Consul Catalog retira el router cuando se detiene el servicio, y que la
+ruta se recupera al iniciarlo y sigue disponible después de reiniciar Consul.
+También espera a que los cinco microservicios vuelvan a aparecer en el
+catálogo. El script solo opera sobre `prompt-final-check`; no ejecutarlo con
+el nombre del proyecto normal. `down` no elimina los volúmenes.
+
+La prueba E2E del flujo incluye métricas Prometheus; espera hasta 45 segundos
+para que el scrape publique métricas de los cinco servicios:
+
+```powershell
+python infra\tests\e2e\verificar_flujo.py
+```
 
 ## Load testing
 
