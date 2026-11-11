@@ -178,16 +178,18 @@ Exit code 0 = sin hallazgos que bloqueen. Exit code 1 = hay que corregir antes d
 
 ## Observabilidad del flujo completo
 
-El stack incluye Prometheus + Grafana para recoger métricas HTTP de baja cardinalidad y seguir una traza de correlación por petición distribuida.
+El stack incluye Prometheus + Grafana para las métricas HTTP de baja cardinalidad y **Jaeger** como backend de trazas distribuidas con OpenTelemetry.
 
 ### Qué se mide
 
 - `http_requests_total`: tráfico por servicio, método, ruta y estado HTTP.
 - `http_request_duration_seconds`: latencia de respuesta por servicio.
-- `x-trace-id` y `traceparent`: propagados desde el orquestador hacia los microservicios participantes.
+- **Trazas OpenTelemetry**: cada petición entrante crea un span (FastAPI) y cada llamada saliente con httpx crea un span hijo e inyecta el header W3C `traceparent`, así una subida recorre en una sola traza orquestador → documentos → extracción → resumen → notificaciones. Los spans se exportan por OTLP/HTTP a Jaeger (`OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318`); sin esa variable las trazas quedan desactivadas. Código: `App/tracing.py` en cada servicio.
+- `x-trace-id`: cada respuesta devuelve el trace id de OpenTelemetry, para buscar la traza en Jaeger.
+- La etiqueta `route` de las métricas es la plantilla de la ruta (`/api/v1/documents/{doc_id}`), no la URL concreta; lo que no coincide con ninguna ruta va a `sin_ruta`.
 - Los logs incluyen `trace_id` en stdout para correlacionar eventos del mismo flujo.
 
-No se registran documentos, textos completos, prompts ni API keys. Las métricas usan solo etiquetas de baja cardinalidad: servicio, método, ruta y estado.
+No se registran documentos, textos completos, prompts, headers ni API keys: los spans solo llevan método, ruta, estado y duración, y `/health`, `/ready` y `/metrics` no generan spans. Las métricas usan solo etiquetas de baja cardinalidad: servicio, método, ruta y estado.
 
 ### Levantar el stack de observabilidad
 
@@ -198,7 +200,8 @@ docker compose -f orquestador-service/infra/docker-compose.yml up -d --wait
 Luego puede abrirse:
 
 - Prometheus: `http://localhost:9090`
-- Grafana: `http://localhost:3000` (usuario `admin`, clave `admin`)
+- Grafana: `http://localhost:3000` (usuario `admin`, clave `admin`), con Prometheus y Jaeger como fuentes de datos
+- Jaeger (trazas): `http://localhost:16686` (buscar por servicio o pegar el `x-trace-id` de una respuesta)
 
 La vista predefinida `Microservicios - Flujo y errores` ya queda conectada a Prometheus.
 
@@ -221,4 +224,10 @@ curl 'http://localhost:9090/api/v1/query?query=histogram_quantile(0.95,%20sum%20
 docker compose -f orquestador-service/infra/docker-compose.yml down
 ```
 
-Si el backend de observabilidad cae, el flujo de negocio no se interrumpe: la aplicación sigue respondiendo y las métricas siguen siendo recolectadas en el siguiente scrape.
+### Prueba reproducible end-to-end
+
+`python infra/tests/e2e/verificar_flujo.py` sube un PDF, sigue la Saga y comprueba que su traza está en Jaeger con spans de los 5 servicios y que Prometheus tiene métricas de los 5.
+
+### Si se cae la observabilidad
+
+El flujo de negocio no se interrumpe: los servicios no dependen de Jaeger ni de Prometheus. Los spans se exportan en segundo plano con timeout de 2 s y, si Jaeger no responde, se descartan; las métricas se vuelven a recolectar en el siguiente scrape.

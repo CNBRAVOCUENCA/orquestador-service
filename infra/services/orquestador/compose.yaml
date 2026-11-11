@@ -17,6 +17,8 @@ services:
       NOTIFICACIONES_HEALTH_URL: http://notificaciones:8000
       REDIS_URL: redis://redis:6379
       CACHE_ENABLED: "true"
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
+      OTEL_SERVICE_NAME: orquestador
       CONSUL_HTTP_ADDR: http://consul:8500
       CONSUL_HTTP_TOKEN: ${CONSUL_HTTP_TOKEN:-}
       CONSUL_SERVICE_NAME: orquestador
