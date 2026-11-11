@@ -2,6 +2,8 @@ FROM python:3.15-alpine AS builder
 
 RUN apk upgrade --no-cache
 
+RUN apk add --no-cache build-base cargo
+
 # uv fijado a una version exacta para que el build sea reproducible
 COPY --from=ghcr.io/astral-sh/uv:0.11.32 /uv /usr/local/bin/uv
 
