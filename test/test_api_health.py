@@ -117,3 +117,30 @@ def test_redis_requerido_falla_readiness_si_cache_esta_habilitado(client, monkey
 
     assert response.status_code == 503
     assert response.json()["dependencies"]["redis"]["status"] == "error"
+
+
+@respx.mock
+def test_readiness_usa_health_directo_cuando_el_trafico_pasa_por_traefik(monkeypatch):
+    """Con DOCUMENTOS_URL=http://traefik:8081, /ready consulta cada servicio directo."""
+    proxy = "http://traefik.test:8081"
+    for nombre, url in SERVICIOS.items():
+        monkeypatch.setenv(f"{nombre.upper()}_URL", proxy)
+        monkeypatch.setenv(f"{nombre.upper()}_HEALTH_URL", url)
+    monkeypatch.setenv("CACHE_ENABLED", "false")
+
+    import importlib
+
+    import App.config.settings as settings_module
+
+    importlib.reload(settings_module)
+    import App.main as main_module
+
+    importlib.reload(main_module)
+    _mock_services()
+    proxy_health = respx.get(f"{proxy}/health").mock(return_value=httpx.Response(404))
+
+    response = TestClient(main_module.app).get("/ready")
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "ok"
+    assert not proxy_health.called

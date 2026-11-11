@@ -10,6 +10,11 @@ services:
       EXTRACCION_URL: http://traefik:8081
       RESUMEN_URL: http://traefik:8081
       NOTIFICACIONES_URL: http://traefik:8081
+      # /ready consulta el /health de cada servicio directo (Traefik no publica /health)
+      DOCUMENTOS_HEALTH_URL: http://documentos:8000
+      EXTRACCION_HEALTH_URL: http://extraccion:8000
+      RESUMEN_HEALTH_URL: http://resumen:8000
+      NOTIFICACIONES_HEALTH_URL: http://notificaciones:8000
       REDIS_URL: redis://redis:6379
       CACHE_ENABLED: "true"
       CONSUL_HTTP_ADDR: http://consul:8500
