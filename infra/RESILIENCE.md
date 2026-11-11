@@ -24,18 +24,24 @@ router.
 
 ## Política de Retry
 
-El cliente del Orquestador y Gemini envían `POST`. No se reintentan
-automáticamente: las operaciones no tienen una clave/contrato de idempotencia
-que permita descartar duplicados, y repetir generación en Gemini puede duplicar
-costos. El Circuit Breaker devuelve 503 cuando está abierto; el Rate Limit
-devuelve 429. Ambos errores se entregan al flujo existente como fallos, sin
-bucle de reintentos.
+Todas las operaciones son `POST` sin clave de idempotencia. Por eso la regla es:
+**solo se reintenta cuando hay certeza de que el destino no procesó el pedido**.
+
+- El Orquestador no reintenta sus llamadas a los servicios: una repetición podría
+  duplicar documentos o estados. El Circuit Breaker devuelve 503 cuando está abierto
+  y el Rate Limit devuelve 429; ambos llegan a la Saga como fallos y disparan la
+  compensación, sin bucles de reintento.
+- Resumen → Gemini sí reintenta, pero solo ante **429/503** (Google rechazó el pedido
+  sin procesarlo) o un **error de conexión** (el pedido nunca llegó). Un 500 o un
+  timeout de lectura **no** se reintentan, porque la generación facturable pudo haber
+  ocurrido. Implementación: `resumen-service/App/services/llm_client.py`.
 
 | Operación | Reintentos automáticos | Intentos máximos | Espera/backoff | Presupuesto |
 |---|---:|---:|---|---|
 | Orquestador → Documentos, Extracción, Resumen y Notificaciones (`POST`) | No | 1 | Ninguno | Una llamada; timeout HTTP configurado en 120 s |
-| Resumen → Gemini (`POST generateContent`) | No | 1 | Ninguno | Una llamada; timeout HTTP de 120 s |
-| Rechazo 429, respuesta 5xx o error de transporte | No | 1 en total | Ninguno | Se propaga el error; no se repite la operación |
+| Resumen → Gemini (`POST generateContent`), respuesta 429/503 o error de conexión | Sí | 4 (1 + 3 reintentos) | 2 s, 4 s, 6 s o `Retry-After` (tope 10 s) | Nuevo intento solo si no se superan 80 s; timeout de 30 s por intento (peor caso ≈110 s, menor que los 120 s del Orquestador) |
+| Resumen → Gemini, respuesta 500, timeout de lectura u otro 4xx | No | 1 | Ninguno | Se devuelve 502 al Orquestador |
+| Orquestador: rechazo 429 (Rate Limit), 503 (breaker) o 5xx de un servicio | No | 1 | Ninguno | Se propaga el error; la Saga compensa |
 
 Si en el futuro se agrega una operación idempotente o una clave de idempotencia,
 su política de retry deberá definirse por separado con máximo de intentos,
