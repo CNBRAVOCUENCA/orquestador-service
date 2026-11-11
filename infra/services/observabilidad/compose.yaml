@@ -1,6 +1,6 @@
 services:
   prometheus:
-    image: prom/prometheus:v2.54.1
+    image: prom/prometheus:v2.54.1@sha256:f6639335d34a77d9d9db382b92eeb7fc00934be8eae81dbc03b31cfe90411a94
     command:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.path=/prometheus
@@ -18,7 +18,7 @@ services:
       retries: 12
 
   grafana:
-    image: grafana/grafana:11.0.0
+    image: grafana/grafana:11.0.0@sha256:0dc5a246ab16bb2c38a349fb588174e832b4c6c2db0981d0c3e6cd774ba66a54
     depends_on:
       - prometheus
     environment:
