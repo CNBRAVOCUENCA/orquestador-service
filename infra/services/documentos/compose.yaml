@@ -16,7 +16,7 @@ services:
       CONSUL_HTTP_TOKEN: ${CONSUL_HTTP_TOKEN:-}
       CONSUL_SERVICE_NAME: documentos
       CONSUL_SERVICE_PORT: "8000"
-      CONSUL_SERVICE_TAGS: "traefik.enable=true,traefik.http.routers.documentos-consul.rule=Host(`documentos.localhost`),traefik.http.routers.documentos-public-consul.rule=PathPrefix(`/api/v1/documents`),traefik.http.routers.documentos-public-consul.entrypoints=web,traefik.http.routers.documentos-public-consul.priority=100,traefik.http.routers.documentos-docs-consul.rule=PathPrefix(`/docs`) || Path(`/openapi.json`),traefik.http.routers.documentos-docs-consul.entrypoints=web,traefik.http.routers.documentos-docs-consul.priority=90,traefik.http.services.documentos-consul.loadbalancer.server.port=8000,traefik.http.routers.documentos-public-consul.middlewares=api-publico@file"
+      CONSUL_SERVICE_TAGS: "traefik.enable=true,traefik.http.routers.documentos-consul.rule=Host(`documentos.localhost`),traefik.http.routers.documentos-public-consul.rule=PathPrefix(`/api/v1/documents`),traefik.http.routers.documentos-public-consul.entrypoints=web,traefik.http.routers.documentos-public-consul.priority=100,traefik.http.routers.documentos-public-consul.middlewares=api-publico@file,traefik.http.routers.documentos-internal-consul.entrypoints=web-internal,traefik.http.routers.documentos-internal-consul.rule=PathPrefix(`/api/v1/documents`),traefik.http.routers.documentos-internal-consul.middlewares=api-circuitbreaker@file,traefik.http.routers.documentos-docs-consul.rule=PathPrefix(`/docs`) || Path(`/openapi.json`),traefik.http.routers.documentos-docs-consul.entrypoints=web,traefik.http.routers.documentos-docs-consul.priority=90,traefik.http.services.documentos-consul.loadbalancer.server.port=8000"
     depends_on:
       consul:
         condition: service_healthy
@@ -27,18 +27,4 @@ services:
       interval: 5s
       timeout: 5s
       retries: 12
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.documentos.rule=Host(`documentos.localhost`)
-      - traefik.http.routers.documentos-public.rule=PathPrefix(`/api/v1/documents`)
-      - traefik.http.routers.documentos-public.entrypoints=web
-      - traefik.http.routers.documentos-public.priority=100
-      - traefik.http.routers.documentos-public.middlewares=api-ratelimit@file,api-circuitbreaker@file
-      - traefik.http.routers.documentos-internal.entrypoints=web-internal
-      - traefik.http.routers.documentos-internal.rule=PathPrefix(`/api/v1/documents`)
-      - traefik.http.routers.documentos-internal.middlewares=api-circuitbreaker@file
-      - traefik.http.routers.documentos-docs.rule=PathPrefix(`/docs`) || Path(`/openapi.json`)
-      - traefik.http.routers.documentos-docs.entrypoints=web
-      - traefik.http.routers.documentos-docs.priority=90
-      - traefik.http.services.documentos.loadbalancer.server.port=8000
     networks: [web]

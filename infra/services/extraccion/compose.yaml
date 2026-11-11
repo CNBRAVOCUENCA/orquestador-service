@@ -22,7 +22,7 @@ services:
       CONSUL_HTTP_TOKEN: ${CONSUL_HTTP_TOKEN:-}
       CONSUL_SERVICE_NAME: extraccion
       CONSUL_SERVICE_PORT: "8000"
-      CONSUL_SERVICE_TAGS: "traefik.enable=true,traefik.http.routers.extraccion-consul.rule=Host(`extraccion.localhost`),traefik.http.routers.extraccion-public-consul.rule=PathPrefix(`/api/v1/extract`),traefik.http.routers.extraccion-public-consul.entrypoints=web,traefik.http.routers.extraccion-public-consul.priority=100,traefik.http.routers.extraccion-sync-consul.rule=Path(`/extract`),traefik.http.routers.extraccion-sync-consul.entrypoints=web,traefik.http.routers.extraccion-sync-consul.priority=100,traefik.http.services.extraccion-consul.loadbalancer.server.port=8000,traefik.http.routers.extraccion-public-consul.middlewares=api-publico@file,traefik.http.routers.extraccion-sync-consul.middlewares=api-publico@file"
+      CONSUL_SERVICE_TAGS: "traefik.enable=true,traefik.http.routers.extraccion-consul.rule=Host(`extraccion.localhost`),traefik.http.routers.extraccion-public-consul.rule=PathPrefix(`/api/v1/extract`),traefik.http.routers.extraccion-public-consul.entrypoints=web,traefik.http.routers.extraccion-public-consul.priority=100,traefik.http.routers.extraccion-public-consul.middlewares=api-publico@file,traefik.http.routers.extraccion-internal-consul.entrypoints=web-internal,traefik.http.routers.extraccion-internal-consul.rule=PathPrefix(`/api/v1/extract`),traefik.http.routers.extraccion-internal-consul.middlewares=api-circuitbreaker@file,traefik.http.routers.extraccion-sync-consul.rule=Path(`/extract`),traefik.http.routers.extraccion-sync-consul.entrypoints=web,traefik.http.routers.extraccion-sync-consul.priority=100,traefik.http.routers.extraccion-sync-consul.middlewares=api-publico@file,traefik.http.routers.extraccion-sync-internal-consul.entrypoints=web-internal,traefik.http.routers.extraccion-sync-internal-consul.rule=Path(`/extract`),traefik.http.routers.extraccion-sync-internal-consul.middlewares=api-circuitbreaker@file,traefik.http.services.extraccion-consul.loadbalancer.server.port=8000"
     depends_on:
       consul:
         condition: service_healthy
@@ -35,23 +35,4 @@ services:
       interval: 5s
       timeout: 5s
       retries: 12
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.extraccion.rule=Host(`extraccion.localhost`)
-      - traefik.http.routers.extraccion-public.rule=PathPrefix(`/api/v1/extract`)
-      - traefik.http.routers.extraccion-public.entrypoints=web
-      - traefik.http.routers.extraccion-public.priority=100
-      - traefik.http.routers.extraccion-public.middlewares=api-ratelimit@file,api-circuitbreaker@file
-      - traefik.http.routers.extraccion-internal.entrypoints=web-internal
-      - "traefik.http.routers.extraccion-internal.rule=PathPrefix(`/api/v1/extract`)"
-      - traefik.http.routers.extraccion-internal.middlewares=api-circuitbreaker@file
-      # Endpoint síncrono del TP de carga: POST /extract con el PDF binario.
-      - traefik.http.routers.extraccion-sync.rule=Path(`/extract`)
-      - traefik.http.routers.extraccion-sync.entrypoints=web
-      - traefik.http.routers.extraccion-sync.priority=100
-      - traefik.http.routers.extraccion-sync.middlewares=api-ratelimit@file,api-circuitbreaker@file
-      - traefik.http.routers.extraccion-sync-internal.entrypoints=web-internal
-      - traefik.http.routers.extraccion-sync-internal.rule=Path(`/extract`)
-      - traefik.http.routers.extraccion-sync-internal.middlewares=api-circuitbreaker@file
-      - traefik.http.services.extraccion.loadbalancer.server.port=8000
     networks: [web]

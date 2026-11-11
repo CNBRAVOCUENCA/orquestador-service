@@ -15,7 +15,7 @@ services:
       CONSUL_HTTP_TOKEN: ${CONSUL_HTTP_TOKEN:-}
       CONSUL_SERVICE_NAME: resumen
       CONSUL_SERVICE_PORT: "8000"
-      CONSUL_SERVICE_TAGS: "traefik.enable=true,traefik.http.routers.resumen-consul.rule=Host(`resumen.localhost`),traefik.http.routers.resumen-public-consul.rule=PathPrefix(`/api/v1/summarize`),traefik.http.routers.resumen-public-consul.entrypoints=web,traefik.http.routers.resumen-public-consul.priority=100,traefik.http.services.resumen-consul.loadbalancer.server.port=8000,traefik.http.routers.resumen-public-consul.middlewares=api-publico@file"
+      CONSUL_SERVICE_TAGS: "traefik.enable=true,traefik.http.routers.resumen-consul.rule=Host(`resumen.localhost`),traefik.http.routers.resumen-public-consul.rule=PathPrefix(`/api/v1/summarize`),traefik.http.routers.resumen-public-consul.entrypoints=web,traefik.http.routers.resumen-public-consul.priority=100,traefik.http.routers.resumen-public-consul.middlewares=api-publico@file,traefik.http.routers.resumen-internal-consul.entrypoints=web-internal,traefik.http.routers.resumen-internal-consul.rule=PathPrefix(`/api/v1/summarize`),traefik.http.routers.resumen-internal-consul.middlewares=api-circuitbreaker@file,traefik.http.services.resumen-consul.loadbalancer.server.port=8000"
     depends_on:
       consul:
         condition: service_healthy
@@ -24,15 +24,4 @@ services:
       interval: 5s
       timeout: 5s
       retries: 12
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.resumen.rule=Host(`resumen.localhost`)
-      - traefik.http.routers.resumen-public.rule=PathPrefix(`/api/v1/summarize`)
-      - traefik.http.routers.resumen-public.entrypoints=web
-      - traefik.http.routers.resumen-public.priority=100
-      - traefik.http.routers.resumen-public.middlewares=api-ratelimit@file,api-circuitbreaker@file
-      - traefik.http.routers.resumen-internal.entrypoints=web-internal
-      - traefik.http.routers.resumen-internal.rule=PathPrefix(`/api/v1/summarize`)
-      - traefik.http.routers.resumen-internal.middlewares=api-circuitbreaker@file
-      - traefik.http.services.resumen.loadbalancer.server.port=8000
     networks: [web]
