@@ -1,7 +1,7 @@
 # Imagen base por etiqueta (no por digest fijo): cada build toma el último parche
 # de Python 3.12 y de Debian. El digest fijo había quedado con Python 3.12.14 y
 # librerías del sistema con CVEs críticas (grype). Igual que el orquestador.
-FROM python:3.12-slim AS source
+FROM python:3.15-slim AS source
 
 ARG SERVICE_REPO
 ARG SERVICE_REF
@@ -13,7 +13,7 @@ RUN apt-get update \
     && git -C /tmp/service checkout --detach "$SERVICE_REF" \
     && rm -rf /var/lib/apt/lists/*
 
-FROM python:3.12-slim AS builder
+FROM python:3.15-slim AS builder
 
 WORKDIR /app
 
@@ -36,7 +36,7 @@ COPY --from=source /tmp/service/App ./App
 # Instala exactamente lo que fija el uv.lock del servicio (falla si esta desactualizado)
 RUN uv sync --locked --no-dev $UV_EXTRAS
 
-FROM python:3.12-slim AS runtime
+FROM python:3.15-slim AS runtime
 
 # Parches de seguridad del sistema operativo (openssl, glibc, zlib, ...).
 RUN apt-get update \
